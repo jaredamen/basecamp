@@ -1,0 +1,33 @@
+{
+  "deck_id": "k8s-network-policies-001",
+  "title": "Kubernetes Network Policies",
+  "source": "https://kubernetes.io/docs/concepts/services-networking/network-policies/",
+  "created_at": "2025-02-20T10:30:00Z",
+  "cards": [
+    {
+      "id": "k8s-np-001",
+      "question": "What is the default network policy behavior in Kubernetes?",
+      "answer": "By default, pods are non-isolated and accept traffic from any source."
+    },
+    {
+      "id": "k8s-np-002",
+      "question": "What resource type is used to define network policies in Kubernetes?",
+      "answer": "NetworkPolicy - it's a native Kubernetes resource that defines how groups of pods are allowed to communicate with each other and other network endpoints."
+    },
+    {
+      "id": "k8s-np-003",
+      "question": "Which field in a NetworkPolicy spec defines which pods the policy applies to?",
+      "answer": "The podSelector field uses label selectors to determine which pods in the namespace the policy applies to."
+    },
+    {
+      "id": "k8s-np-004",
+      "question": "What are the two types of traffic that NetworkPolicies can control?",
+      "answer": "Ingress (incoming traffic to pods) and Egress (outgoing traffic from pods)."
+    },
+    {
+      "id": "k8s-np-005",
+      "question": "What happens when you create a NetworkPolicy with an empty podSelector?",
+      "answer": "An empty podSelector selects all pods in the namespace, applying the policy to all pods in that namespace."
+    }
+  ]
+}

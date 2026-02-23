@@ -1,0 +1,33 @@
+{
+  "deck_id": "prometheus-alerting-001",
+  "title": "Prometheus Alerting Rules",
+  "source": "https://prometheus.io/docs/prometheus/latest/configuration/alerting_rules/",
+  "created_at": "2025-02-20T11:15:00Z",
+  "cards": [
+    {
+      "id": "prom-alert-001",
+      "question": "What file extension is used for Prometheus alerting rules?",
+      "answer": ".yml or .yaml - Alerting rules are defined in YAML format files."
+    },
+    {
+      "id": "prom-alert-002",
+      "question": "What are the two main components of a Prometheus alerting rule?",
+      "answer": "The alert condition (expr) and the alert metadata (labels and annotations)."
+    },
+    {
+      "id": "prom-alert-003",
+      "question": "What is the purpose of the 'for' field in an alerting rule?",
+      "answer": "It specifies how long the condition must be true before the alert fires, preventing false alarms from transient issues."
+    },
+    {
+      "id": "prom-alert-004",
+      "question": "What's the difference between labels and annotations in alerting rules?",
+      "answer": "Labels are used for alert routing and grouping (sent to Alertmanager), while annotations provide additional descriptive information for humans."
+    },
+    {
+      "id": "prom-alert-005",
+      "question": "How do you reload alerting rules without restarting Prometheus?",
+      "answer": "Send a SIGHUP signal to the Prometheus process or make a POST request to the /-/reload endpoint."
+    }
+  ]
+}
