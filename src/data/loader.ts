@@ -68,7 +68,7 @@ class LocalDataLoader implements DataLoader {
           } else {
             reject(new Error('Invalid file format'));
           }
-        } catch (error) {
+        } catch {
           reject(new Error('Failed to parse JSON file'));
         }
       };

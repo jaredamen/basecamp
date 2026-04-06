@@ -44,10 +44,10 @@ export const AudioFeed: React.FC<AudioFeedProps> = ({
   onImport,
   onError
 }) => {
-  const handleImport = (data: AudioBriefing[] | any[]) => {
+  const handleImport = (data: AudioBriefing[] | unknown[]) => {
     // Filter to ensure we only get AudioBriefing items
-    const audioBriefings = data.filter((item): item is AudioBriefing => 
-      'script' in item && typeof item.script === 'string'
+    const audioBriefings = data.filter((item: unknown): item is AudioBriefing => 
+      typeof item === 'object' && item !== null && 'script' in item && typeof (item as AudioBriefing).script === 'string'
     );
     
     if (audioBriefings.length === 0) {
@@ -55,7 +55,7 @@ export const AudioFeed: React.FC<AudioFeedProps> = ({
       return;
     }
     
-    onImport(audioBriefings);
+    onImport(audioBriefings as AudioBriefing[]);
   };
 
   if (loading) {

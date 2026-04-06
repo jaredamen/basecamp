@@ -44,24 +44,37 @@ export const useFlashcards = () => {
 };
 
 export const useFlashcardSession = (deck: FlashcardDeck | null) => {
-  const [session, setSession] = useState<FlashcardSession | null>(null);
+  const [session, setSession] = useState<FlashcardSession | null>(() =>
+    deck ? {
+      deckId: deck.deck_id,
+      currentCardIndex: 0,
+      gotItCount: 0,
+      reviewAgainCount: 0,
+      completedCards: new Set<string>(),
+      reviewAgainCards: new Set<string>()
+    } : null
+  );
   const [currentCardIndex, setCurrentCardIndex] = useState(0);
   const [showAnswer, setShowAnswer] = useState(false);
 
   useEffect(() => {
     if (deck) {
-      setSession({
+      const newSession: FlashcardSession = {
         deckId: deck.deck_id,
         currentCardIndex: 0,
         gotItCount: 0,
         reviewAgainCount: 0,
-        completedCards: new Set(),
-        reviewAgainCards: new Set()
-      });
+        completedCards: new Set<string>(),
+        reviewAgainCards: new Set<string>()
+      };
+      
+      setSession(newSession);
       setCurrentCardIndex(0);
       setShowAnswer(false);
+    } else {
+      setSession(null);
     }
-  }, [deck]);
+  }, [deck]); // Include full deck to handle changes properly
 
   const nextCard = () => {
     if (!deck || !session) return;

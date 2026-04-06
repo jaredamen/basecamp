@@ -1,0 +1,17 @@
+# Auto-assign reviewers to pull requests
+addReviewers: true
+addAssignees: false
+
+reviewers:
+  - YusefAmen  # Repository owner
+
+skipKeywords:
+  - wip
+  - draft
+  - '[skip ci]'
+
+# Only auto-assign on feature branches
+onlyAssignDependabot: false
+filterLabels:
+  exclude:
+    - dependencies

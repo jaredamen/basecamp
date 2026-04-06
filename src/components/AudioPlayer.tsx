@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import type { AudioBriefing } from '../types';
 import { useAudioPlayer } from '../hooks/useAudioPlayer';
+import { useTTS } from '../hooks/useTTS';
+import { VoiceSettings } from './VoiceSettings';
 
 interface AudioPlayerProps {
   briefing: AudioBriefing;
@@ -37,6 +39,13 @@ const ForwardIcon: React.FC<{ className?: string }> = ({ className }) => (
   </svg>
 );
 
+const SettingsIcon: React.FC<{ className?: string }> = ({ className }) => (
+  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+  </svg>
+);
+
 const formatTime = (time: number): string => {
   const minutes = Math.floor(time / 60);
   const seconds = Math.floor(time % 60);
@@ -53,17 +62,33 @@ const formatDate = (dateString: string) => {
 
 export const AudioPlayer: React.FC<AudioPlayerProps> = ({ briefing, onBack }) => {
   const { playerState, loadBriefing, play, pause, skipBackward, skipForward, setPlaybackRate } = useAudioPlayer();
+  const { ttsState, speak, stop: stopTTS } = useTTS();
   const [showScript, setShowScript] = useState(false);
+  const [showVoiceSettings, setShowVoiceSettings] = useState(false);
   
   React.useEffect(() => {
     loadBriefing(briefing);
   }, [briefing, loadBriefing]);
 
   const handlePlayPause = () => {
-    if (playerState.isPlaying) {
+    if (playerState.isPlaying || ttsState.isReading) {
       pause();
+      stopTTS();
     } else {
-      play();
+      if (briefing.audio_file) {
+        play();
+      } else {
+        // Use enhanced TTS for script reading
+        speak(briefing.script, true);
+      }
+    }
+  };
+
+  const handleReadScript = () => {
+    if (ttsState.isReading) {
+      stopTTS();
+    } else {
+      speak(briefing.script, true);
     }
   };
 
@@ -81,12 +106,24 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({ briefing, onBack }) =>
             <ArrowBackIcon className="w-5 h-5 mr-1" />
             <span className="text-sm font-medium">Back</span>
           </button>
-          <button
-            onClick={() => setShowScript(!showScript)}
-            className="text-xs text-dark-400 hover:text-dark-200 px-2 py-1 rounded border border-dark-600 hover:border-dark-500"
-          >
-            {showScript ? 'Hide Script' : 'Show Script'}
-          </button>
+          <div className="flex space-x-2">
+            <button
+              onClick={() => setShowScript(!showScript)}
+              className="text-xs text-dark-400 hover:text-dark-200 px-2 py-1 rounded border border-dark-600 hover:border-dark-500"
+            >
+              {showScript ? 'Hide Script' : 'Show Script'}
+            </button>
+            {!briefing.audio_file && (
+              <button
+                onClick={() => setShowVoiceSettings(true)}
+                className="text-xs text-dark-400 hover:text-dark-200 px-2 py-1 rounded border border-dark-600 hover:border-dark-500 flex items-center space-x-1"
+                title="Voice Settings"
+              >
+                <SettingsIcon className="w-3 h-3" />
+                <span>Voice</span>
+              </button>
+            )}
+          </div>
         </div>
         
         <h2 className="text-lg font-semibold text-dark-100 mb-1">
@@ -124,7 +161,7 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({ briefing, onBack }) =>
                   <PlayIcon className="w-8 h-8 text-blue-400" />
                 </div>
                 <p className="text-sm text-dark-400">
-                  {briefing.audio_file ? 'Audio Briefing' : 'Text-to-Speech'}
+                  {briefing.audio_file ? 'Audio Briefing' : `TTS: ${ttsState.voiceSettings.personality.replace('-', ' ')}`}
                 </p>
               </div>
             </div>
@@ -174,12 +211,22 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({ briefing, onBack }) =>
               </div>
             </div>
 
-            {/* Status */}
+            {/* TTS Status */}
             {!briefing.audio_file && (
-              <div className="mb-6 text-center">
+              <div className="mb-6 text-center space-y-2">
                 <p className="text-sm text-dark-400 bg-dark-800 px-4 py-2 rounded-lg">
-                  This briefing will be read using text-to-speech
+                  Voice: {ttsState.voiceSettings.personality.replace('-', ' ')}
+                  {ttsState.voiceSettings.personality === 'peter-griffin' && ' 🍺'}
                 </p>
+                {showScript && (
+                  <button
+                    onClick={handleReadScript}
+                    disabled={ttsState.isReading}
+                    className="text-sm bg-blue-600 hover:bg-blue-700 disabled:bg-dark-600 disabled:text-dark-400 text-white px-4 py-2 rounded-lg transition-colors"
+                  >
+                    {ttsState.isReading ? 'Reading...' : 'Read Script Aloud'}
+                  </button>
+                )}
               </div>
             )}
           </div>
@@ -207,7 +254,7 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({ briefing, onBack }) =>
             className="p-4 bg-blue-600 hover:bg-blue-700 rounded-full text-white transition-colors"
             aria-label={playerState.isPlaying ? 'Pause' : 'Play'}
           >
-            {playerState.isPlaying ? (
+            {playerState.isPlaying || ttsState.isReading ? (
               <PauseIcon className="w-8 h-8" />
             ) : (
               <PlayIcon className="w-8 h-8 ml-1" />
@@ -228,6 +275,12 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({ briefing, onBack }) =>
           )}
         </div>
       </div>
+
+      {/* Voice Settings Modal */}
+      <VoiceSettings 
+        isOpen={showVoiceSettings} 
+        onClose={() => setShowVoiceSettings(false)} 
+      />
     </div>
   );
 };

@@ -1,4 +1,4 @@
-import { renderHook } from '@testing-library/react';
+import { renderHook, act } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { useFlashcardSession } from '../../src/hooks/useFlashcards';
 import type { FlashcardDeck } from '../../src/types';
@@ -41,7 +41,9 @@ describe('useFlashcardSession', () => {
 
     expect(result.current.currentCardIndex).toBe(0);
     
-    result.current.nextCard();
+    act(() => {
+      result.current.nextCard();
+    });
     
     expect(result.current.currentCardIndex).toBe(1);
     expect(result.current.currentCard).toEqual(mockDeck.cards[1]);
@@ -52,11 +54,15 @@ describe('useFlashcardSession', () => {
     const { result } = renderHook(() => useFlashcardSession(mockDeck));
 
     // Move to second card first
-    result.current.nextCard();
+    act(() => {
+      result.current.nextCard();
+    });
     expect(result.current.currentCardIndex).toBe(1);
     
     // Move back to first card
-    result.current.previousCard();
+    act(() => {
+      result.current.previousCard();
+    });
     
     expect(result.current.currentCardIndex).toBe(0);
     expect(result.current.currentCard).toEqual(mockDeck.cards[0]);
@@ -67,11 +73,15 @@ describe('useFlashcardSession', () => {
 
     expect(result.current.showAnswer).toBe(false);
     
-    result.current.toggleAnswer();
+    act(() => {
+      result.current.toggleAnswer();
+    });
     
     expect(result.current.showAnswer).toBe(true);
     
-    result.current.toggleAnswer();
+    act(() => {
+      result.current.toggleAnswer();
+    });
     
     expect(result.current.showAnswer).toBe(false);
   });
@@ -79,7 +89,9 @@ describe('useFlashcardSession', () => {
   it('marks card as got it', () => {
     const { result } = renderHook(() => useFlashcardSession(mockDeck));
 
-    result.current.markGotIt();
+    act(() => {
+      result.current.markGotIt();
+    });
 
     expect(result.current.session?.gotItCount).toBe(1);
     expect(result.current.session?.reviewAgainCount).toBe(0);
@@ -89,7 +101,9 @@ describe('useFlashcardSession', () => {
   it('marks card as review again', () => {
     const { result } = renderHook(() => useFlashcardSession(mockDeck));
 
-    result.current.markReviewAgain();
+    act(() => {
+      result.current.markReviewAgain();
+    });
 
     expect(result.current.session?.reviewAgainCount).toBe(1);
     expect(result.current.session?.gotItCount).toBe(0);
@@ -104,12 +118,16 @@ describe('useFlashcardSession', () => {
     expect(result.current.isLastCard).toBe(false);
 
     // Move to middle card
-    result.current.nextCard();
+    act(() => {
+      result.current.nextCard();
+    });
     expect(result.current.isFirstCard).toBe(false);
     expect(result.current.isLastCard).toBe(false);
 
     // Move to last card
-    result.current.nextCard();
+    act(() => {
+      result.current.nextCard();
+    });
     expect(result.current.isFirstCard).toBe(false);
     expect(result.current.isLastCard).toBe(true);
   });
@@ -118,12 +136,16 @@ describe('useFlashcardSession', () => {
     const { result } = renderHook(() => useFlashcardSession(mockDeck));
 
     // Make some progress
-    result.current.nextCard();
-    result.current.markGotIt();
-    result.current.toggleAnswer();
+    act(() => {
+      result.current.nextCard();
+      result.current.markGotIt();
+      result.current.toggleAnswer();
+    });
 
     // Reset
-    result.current.resetSession();
+    act(() => {
+      result.current.resetSession();
+    });
 
     expect(result.current.currentCardIndex).toBe(0);
     expect(result.current.showAnswer).toBe(false);

@@ -1,0 +1,12 @@
+[
+  {
+    "path": "dist/assets/*.js",
+    "maxSize": "300kb",
+    "compression": "gzip"
+  },
+  {
+    "path": "dist/assets/*.css", 
+    "maxSize": "50kb",
+    "compression": "gzip"
+  }
+]

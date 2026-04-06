@@ -31,10 +31,10 @@ export const FlashcardDeck: React.FC<FlashcardDeckProps> = ({
   onImport,
   onError
 }) => {
-  const handleImport = (data: FlashcardDeckType[] | any[]) => {
+  const handleImport = (data: FlashcardDeckType[] | unknown[]) => {
     // Filter to ensure we only get FlashcardDeck items
-    const flashcardDecks = data.filter((item): item is FlashcardDeckType => 
-      'cards' in item && Array.isArray(item.cards)
+    const flashcardDecks = data.filter((item: unknown): item is FlashcardDeckType => 
+      typeof item === 'object' && item !== null && 'cards' in item && Array.isArray((item as FlashcardDeckType).cards)
     );
     
     if (flashcardDecks.length === 0) {
@@ -42,7 +42,7 @@ export const FlashcardDeck: React.FC<FlashcardDeckProps> = ({
       return;
     }
     
-    onImport(flashcardDecks);
+    onImport(flashcardDecks as FlashcardDeckType[]);
   };
 
   if (loading) {
