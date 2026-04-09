@@ -1,9 +1,8 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import userEvent from '@testing-library/user-event';
 import { VoiceSettings } from '../VoiceSettings';
-import * as useTTSModule from '../../hooks/useTTS';
-import type { TTSState, VoiceSettings as VoiceSettingsType } from '../../types';
+import type { TTSState } from '../../types';
 
 // Mock the useTTS hook
 const mockUseTTS = {
@@ -250,7 +249,7 @@ describe('VoiceSettings', () => {
     });
 
     it('should show fallback text when no recommended voice', () => {
-      mockUseTTS.getRecommendedVoice.mockReturnValue(undefined);
+      mockUseTTS.getRecommendedVoice.mockReturnValue(undefined as unknown as SpeechSynthesisVoice);
       render(<VoiceSettings isOpen={true} onClose={mockOnClose} />);
       
       expect(screen.getByText('Recommended: Default')).toBeInTheDocument();
@@ -287,7 +286,7 @@ describe('VoiceSettings', () => {
     });
 
     it('should handle empty voice groups gracefully', () => {
-      mockUseTTS.getVoicesByLanguage.mockReturnValue({});
+      mockUseTTS.getVoicesByLanguage.mockReturnValue({ en: [] });
       render(<VoiceSettings isOpen={true} onClose={mockOnClose} />);
       
       const voiceSelect = screen.getByLabelText('System Voice');

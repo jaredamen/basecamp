@@ -69,7 +69,6 @@ export function LoadingIndicator({ stage, progress, error, onRetry }: LoadingInd
           {stages.map((stageInfo, index) => {
             const isCompleted = index < currentStageIndex;
             const isCurrent = index === currentStageIndex;
-            const isPending = index > currentStageIndex;
 
             return (
               <div 

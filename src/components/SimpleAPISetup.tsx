@@ -9,13 +9,12 @@ interface SimpleAPISetupProps {
 }
 
 export function SimpleAPISetup({ onComplete, onBack }: SimpleAPISetupProps) {
-  const { 
-    config, 
-    updateAIProvider, 
-    updateVoiceProvider, 
-    testAIConnection, 
+  const {
+    updateAIProvider,
+    updateVoiceProvider,
+    testAIConnection,
     validateAPIKey,
-    testingConnection 
+    testingConnection
   } = useBYOK();
   
   const [currentStep, setCurrentStep] = useState<'ai' | 'voice' | 'complete'>('ai');

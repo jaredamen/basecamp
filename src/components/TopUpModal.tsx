@@ -13,7 +13,7 @@ const TIERS = [
   { cents: 2000, label: '$20', description: '~300-400 sessions' },
 ];
 
-export function TopUpModal({ currentBalance, onClose, onPurchaseComplete }: TopUpModalProps) {
+export function TopUpModal({ currentBalance, onClose, onPurchaseComplete: _onPurchaseComplete }: TopUpModalProps) {
   const [loading, setLoading] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
 

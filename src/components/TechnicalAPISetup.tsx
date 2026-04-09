@@ -9,14 +9,13 @@ interface TechnicalAPISetupProps {
 }
 
 export function TechnicalAPISetup({ onComplete, onBack }: TechnicalAPISetupProps) {
-  const { 
-    config, 
-    updateAIProvider, 
-    updateVoiceProvider, 
-    testAIConnection, 
+  const {
+    updateAIProvider,
+    updateVoiceProvider,
+    testAIConnection,
     validateAPIKey,
     getCostEstimate,
-    testingConnection 
+    testingConnection
   } = useBYOK();
   
   const [aiProvider, setAIProvider] = useState<AIProvider>('openai');

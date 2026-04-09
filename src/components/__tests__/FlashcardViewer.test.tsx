@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import userEvent from '@testing-library/user-event';
 import { FlashcardViewer } from '../FlashcardViewer';
@@ -343,8 +343,8 @@ describe('FlashcardViewer', () => {
 
   describe('error handling', () => {
     it('should handle missing session gracefully', () => {
-      mockUseFlashcardSession.session = null;
-      mockUseFlashcardSession.currentCard = null;
+      mockUseFlashcardSession.session = null as any;
+      mockUseFlashcardSession.currentCard = null as any;
 
       render(<FlashcardViewer deck={sampleDeck} onBack={mockOnBack} />);
 

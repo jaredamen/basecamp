@@ -75,7 +75,7 @@ export class ElevenLabsTTSService {
 
       const data = await response.json();
       this.voicesCache = data.voices || [];
-      return this.voicesCache;
+      return this.voicesCache!;
     } catch (error) {
       console.error('Failed to fetch voices:', error);
       throw new Error('Failed to fetch voice library. Please check your API key.');

@@ -19,7 +19,7 @@ export class BYOKStorage {
     return BYOKStorage.instance;
   }
 
-  private createDefaultConfig(): BYOKConfig {
+  createDefaultConfig(): BYOKConfig {
     return {
       aiProvider: null,
       voiceProvider: null,

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { Flashcard, FlashcardSet } from '../services/aiPrompting';
+import type { FlashcardSet } from '../services/aiPrompting';
 
 interface FlashcardDisplayProps {
   flashcardSet: FlashcardSet;

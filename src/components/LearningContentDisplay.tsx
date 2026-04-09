@@ -1,10 +1,7 @@
 import { useState } from 'react';
 import { FlashcardDisplay } from './FlashcardDisplay';
 import { AudioPlayer } from './AudioPlayer';
-import { useContentGeneration } from '../hooks/useContentGeneration';
-import { useElevenLabs } from '../hooks/useElevenLabs';
 import type { FlashcardSet, AudioScript } from '../services/aiPrompting';
-import type { AudioGeneration } from '../services/elevenLabsTTS';
 
 interface LearningContentDisplayProps {
   flashcards: FlashcardSet;
@@ -20,15 +17,6 @@ export function LearningContentDisplay({
   onBack 
 }: LearningContentDisplayProps) {
   const [viewMode, setViewMode] = useState<ViewMode>('overview');
-  const [audioGeneration, setAudioGeneration] = useState<AudioGeneration | null>(null);
-  const { generateFullNarrative, isGenerating } = useElevenLabs();
-
-  const handleGenerateAudio = async () => {
-    const generation = await generateFullNarrative(audioScript);
-    if (generation) {
-      setAudioGeneration(generation);
-    }
-  };
 
   if (viewMode === 'flashcards') {
     return (
@@ -74,7 +62,7 @@ export function LearningContentDisplay({
               <button
                 onClick={() => setViewMode('flashcards')}
                 className={`px-4 py-2 rounded-md font-medium transition-all ${
-                  viewMode === 'flashcards'
+                  (viewMode as string) === 'flashcards'
                     ? 'bg-green-600 text-white'
                     : 'text-dark-300 hover:text-white'
                 }`}
@@ -238,16 +226,22 @@ export function LearningContentDisplay({
         {viewMode === 'audio' && (
           <div className="space-y-6">
             <AudioPlayer
-              audioScript={audioScript}
-              audioGeneration={audioGeneration || undefined}
-              onGenerateAudio={handleGenerateAudio}
+              briefing={{
+                briefing_id: 'audio-script',
+                title: audioScript.title || 'Audio Briefing',
+                source: '',
+                created_at: new Date().toISOString(),
+                script: audioScript.content,
+                audio_file: undefined
+              }}
+              onBack={() => setViewMode('overview')}
             />
             
             {/* Script Content */}
             <div className="bg-dark-800/50 border border-dark-700 rounded-lg p-6">
               <h3 className="text-lg font-semibold text-white mb-4">Audio Script</h3>
               <div className="space-y-4">
-                {audioScript.sections.map((section, index) => (
+                {audioScript.sections.map((section) => (
                   <div key={section.id} className="border-l-4 border-purple-600/30 pl-4">
                     <h4 className="font-medium text-purple-300 mb-2">{section.heading}</h4>
                     <p className="text-dark-300 text-sm leading-relaxed">{section.content}</p>
