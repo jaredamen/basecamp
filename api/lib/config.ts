@@ -1,0 +1,65 @@
+// Server-side configuration — all values from Vercel environment variables.
+// See .env.example for the full list of required variables.
+//
+// Uses lazy getters so that missing env vars only error when actually accessed,
+// preventing e.g. a missing STRIPE_SECRET_KEY from crashing auth endpoints.
+
+function requireEnv(name: string): string {
+  const val = process.env[name];
+  if (!val) {
+    throw new Error(`Missing required environment variable: ${name}`);
+  }
+  return val;
+}
+
+export const config = {
+  // Google OAuth
+  google: {
+    get clientId() { return requireEnv('GOOGLE_CLIENT_ID'); },
+    get clientSecret() { return requireEnv('GOOGLE_CLIENT_SECRET'); },
+    get redirectUri() { return requireEnv('GOOGLE_REDIRECT_URI'); },
+  },
+
+  // JWT for session tokens
+  jwt: {
+    get secret() { return requireEnv('JWT_SECRET'); },
+    cookieName: 'bc_token',
+    expiryDays: 30,
+  },
+
+  // OpenAI — developer's key, used by proxy for managed users
+  openai: {
+    get apiKey() { return requireEnv('OPENAI_API_KEY'); },
+    defaultModel: 'gpt-4o',
+    ttsModel: 'tts-1',
+    ttsDefaultVoice: 'nova',
+  },
+
+  // Stripe payments
+  stripe: {
+    get secretKey() { return requireEnv('STRIPE_SECRET_KEY'); },
+    get webhookSecret() { return requireEnv('STRIPE_WEBHOOK_SECRET'); },
+  },
+
+  // Credit tiers (cents)
+  creditTiers: [300, 500, 1000, 2000] as const,
+
+  // Markup on OpenAI costs (1.5 = 50% markup)
+  costMarkup: 1.5,
+
+  // OpenAI pricing (dollars per token) — update if pricing changes
+  openaiPricing: {
+    'gpt-4o': { input: 0.0000025, output: 0.000010 },
+    'gpt-4o-mini': { input: 0.00000015, output: 0.0000006 },
+  } as Record<string, { input: number; output: number }>,
+
+  // OpenAI TTS pricing (dollars per character)
+  openaiTTSPricePerChar: 0.000015,
+
+  // App URLs — APP_URL overrides VERCEL_URL for local dev (set to http://localhost:5173)
+  get appUrl(): string {
+    if (process.env.APP_URL) return process.env.APP_URL;
+    if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`;
+    return 'http://localhost:5173';
+  },
+} as const;

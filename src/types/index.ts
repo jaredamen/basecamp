@@ -66,3 +66,10 @@ export interface TTSState {
 export interface EnhancedAudioPlayerState extends AudioPlayerState {
   ttsState: TTSState;
 }
+
+export type AppViewState = 
+  | 'welcome'
+  | 'demo' 
+  | 'profile-setup'
+  | 'dashboard'
+  | 'main-app';

@@ -1,149 +1,217 @@
-# Basecamp + Climber Integration & TTS Enhancement Plan
+# Basecamp MVP: BYOK AI Learning Middleware
 
-## Current State Analysis
+## 🎯 **Core Value Proposition**
+**"Transform Any Technical Documentation Into Engaging Learning"**
 
-**Climber (Python CLI)**:
-- ✅ Mature AI content processor (OpenAI/Anthropic APIs)
-- ✅ Ingests URLs, PDFs, markdown → outputs JSON flashcards/briefings
-- ✅ Already outputs Basecamp-compatible JSON format
-- ✅ Robust CLI with presets (runbook, changelog, general)
+Basecamp processes technical documentation through expert AI prompting and delivers it as flashcards + expert audio narratives using premium ElevenLabs voices. Users bring their own API keys for full cost control.
 
-**Basecamp (React PWA)**:
-- ✅ Mobile-first study app for flashcards/audio
-- ✅ File import system for Climber JSON
-- ✅ Basic TTS (Web Speech API)
-- ❌ No direct Climber integration
-- ❌ No layperson onboarding
+## 🚀 **User Setup: Technical vs Simple**
 
-## The Integration Strategy
+### **Setup Path Selection** (Complexity, Not Learning Style)
+**"How comfortable are you with API setup?"**
+- 🔧 **"I'm technical - give me control"** → Advanced configuration
+- 🎓 **"Keep it simple"** → Guided wizard setup
 
-### Phase 1: Web API Bridge
-**Goal**: Connect Climber's AI power to Basecamp's mobile UX
+**Both paths create identical learning content** - only setup complexity differs.
 
-**Implementation**:
-- Create FastAPI web service wrapper around Climber
-- Expose endpoints: `/process`, `/status`, `/health`
-- Deploy alongside Basecamp (same domain for CORS simplicity)
-- Basecamp calls API instead of requiring file imports
+## 📚 **Content Input Types**
 
-### Phase 2: Enhanced TTS & Fun Voices
-**Goal**: Make studying more engaging and accessible
+### **Technical Documentation Processing**
+- **Documentation URLs**: Kubernetes docs, AWS guides, API references, GitHub repos
+- **File Uploads**: PDFs, markdown files, technical specifications
+- **Code Repositories**: Extract learning from codebases and README files
+- **API Documentation**: Swagger/OpenAPI specs, SDK guides
 
-**TTS Improvements**:
-- Voice selection UI (system voices + character voices)
-- **Peter Griffin voice simulation** using Web Audio API pitch/speed modulation
-- TTS for flashcard questions/answers (hands-free study)
-- Reading progress highlighting
-- Speed/voice preferences storage
+### **General Topics**
+- **Concept Requests**: "Explain microservices architecture"
+- **Technology Overviews**: "How does Docker work?"
+- **Best Practices**: "DevOps deployment strategies"
 
-**Voice Personalities**:
-- Standard (current)
-- Peter Griffin (pitch-shifted + custom phrases)
-- Motivational Coach (energetic tone)
-- ASMR Study (soft, calming)
+### **Smart Content Processing**
+- **Documentation Analysis**: Extract key concepts, examples, and workflows
+- **Code Example Integration**: Include practical implementation details
+- **Prerequisite Detection**: Identify required background knowledge
+- **Complexity Assessment**: Determine appropriate explanation depth
 
-### Phase 3: Layperson Study Flows
-**Goal**: Make it dead simple for non-technical users
+## 🔑 **BYOK Implementation**
 
-**Quick Study Modes**:
-1. **"Study This URL"** - paste link → auto-generate → study
-2. **"Topic Deep Dive"** - enter topic → LLM creates comprehensive materials  
-3. **"Document Study"** - upload PDF/text → extract key learning points
-4. **"Refresh My Knowledge"** - revisit previous topics with new angles
-
-**Onboarding Flow**:
-- Welcome screen explaining the learning approach
-- API key setup with clear privacy explanations
-- Sample study session walkthrough
-- Quick tour of features
-
-### Phase 4: Advanced Learning Features
-**Goal**: Make this a powerful learning companion
-
-**Smart Features**:
-- **Podcast Mode**: Auto-generate conversational audio scripts
-- **Adaptive Flashcards**: Spaced repetition based on performance
-- **Study Streaks**: Gamification with Peter Griffin celebrations
-- **Offline Mode**: Cache frequently studied topics
-- **Study Groups**: Share decks with teammates
-
-## Technical Implementation
-
-### Monorepo Structure:
+### **Technical Setup Path**
 ```
-/basecamp-platform/
-├── web/                 # React PWA (existing Basecamp)
-├── api/                 # FastAPI wrapper around Climber
-├── climber/             # Python CLI (as submodule)
-└── shared/              # Common types/schemas
+AI Provider Configuration:
+├── Direct API key input fields
+├── Model parameter controls (temperature, tokens, context length)
+├── Custom prompt template editing
+├── Multiple provider support (OpenAI, Anthropic, Google)
+├── Advanced guardrail configuration
+└── Batch processing options
 ```
 
-### Key Files to Create/Modify:
-**New Files**:
-- `api/main.py` - FastAPI service
-- `web/src/services/climberApi.ts` - API client
-- `web/src/components/QuickStudy.tsx` - URL/topic input
-- `web/src/hooks/useTTS.ts` - Enhanced TTS with voices
-- `web/src/components/VoiceSettings.tsx` - Voice selection
+### **Simple Setup Path**
+```
+Guided Setup Wizard:
+├── "Choose your AI provider" (with cost comparison)
+├── "Get your API key" (step-by-step with screenshots)
+├── Key validation and testing
+├── Voice provider setup (ElevenLabs)
+├── One-click optimal configuration
+└── Ready to generate content
+```
 
-**Modified Files**:
-- `web/src/App.tsx` - Add quick study flows
-- `web/src/components/AudioPlayer.tsx` - Voice selection
-- `web/src/types/index.ts` - Add API types
+## 🎵 **Premium Audio: ElevenLabs Integration**
 
-### API Endpoints:
-- `POST /api/process` - Process URL/text with Climber
-- `GET /api/voices` - Available TTS voices
-- `POST /api/audio/generate` - Generate audio with selected voice
-- `GET /api/status/{task_id}` - Check processing status
+### **Full Voice Library Access** (User's ElevenLabs API Key)
+- **10,000+ Professional Voices**: Technical instructors, expert narrators
+- **Celebrity Voices**: Engaging personalities for complex topics
+- **Character Voices**: Fun learning with recognizable characters  
+- **Emotional Range**: Authoritative, friendly, enthusiastic, calm
+- **Multilingual**: 70+ languages with native pronunciation
+- **Custom Voice Cloning**: Create personalized instructor voices
 
-## User Experience Flow
+### **Expert Audio Format: Single Voice Teaching**
+```
+Expert Teaching Narrative Example:
 
-### For Laypeople:
-1. **Open Basecamp** → Welcome screen
-2. **"I want to study something"** → Quick study options
-3. **Paste URL or enter topic** → AI generates materials  
-4. **Pick voice** (including Peter Griffin!)
-5. **Start studying** → Flashcards + audio with progress tracking
+"Let's dive into this Kubernetes networking documentation together.
 
-### For Advanced Users:
-1. **Use Climber CLI** for batch processing
-2. **Import to Basecamp** for mobile study
-3. **Or use Basecamp's web interface** for one-off studies
+Think of a Kubernetes cluster like a city's communication network. Each pod is like a building, and the network policies are like the postal service rules that determine who can send mail to whom.
 
-## Why This Approach Works
+Now, looking at this specific YAML configuration from the docs... *[reads actual code]* ...notice how the podSelector works exactly like addressing an envelope - it needs to know exactly which 'building' to reach.
 
-1. **Preserves Climber's strengths** - robust AI processing stays in Python
-2. **Leverages Basecamp's UX** - mobile-first study experience
-3. **Bridges the gap** - web API makes integration seamless
-4. **Serves both audiences** - technical users keep CLI, laypeople get guided UX
-5. **Fun factor** - Peter Griffin voice makes studying memorable!
+Here's where it gets interesting in real-world scenarios. I was debugging a network issue last month where..."
+```
 
-## Implementation Phases
+### **Voice Selection Strategy**
+- **Documentation Deep-Dives**: Authoritative technical expert voices
+- **Concept Explanations**: Engaging storyteller personalities
+- **Code Walkthroughs**: Clear, methodical programming instructor voices
+- **Complex Topics**: Patient, analogy-rich explainer voices
 
-### Phase 1: Enhanced TTS (Start Here)
-- [ ] Create enhanced TTS hook with voice selection
-- [ ] Add Peter Griffin voice simulation
-- [ ] Add TTS to flashcard reading
-- [ ] Create voice settings component
-- [ ] Add TTS preferences storage
+## 🧠 **Smart Prompting System**
 
-### Phase 2: Onboarding & UX
-- [ ] Create welcome/onboarding flow
-- [ ] Add quick study input components
-- [ ] Create guided tour
-- [ ] Add study mode selection
+### **Documentation-Specific Prompts**
+```
+Process this technical documentation: [URL/CONTENT]
 
-### Phase 3: API Integration
-- [ ] Create FastAPI wrapper for Climber
-- [ ] Implement processing endpoints
-- [ ] Add API client to Basecamp
-- [ ] Connect quick study flows to API
+ANALYSIS PHASE:
+- Extract key concepts and learning objectives
+- Identify code examples and practical implementations  
+- Note prerequisites and dependencies
+- Assess complexity level and target audience
 
-### Phase 4: Advanced Features
-- [ ] Implement spaced repetition
-- [ ] Add study streaks & gamification
-- [ ] Create offline caching
-- [ ] Add sharing functionality
+FLASHCARD GENERATION:
+- Create 10-15 cards covering essential concepts
+- Include code examples with explanations
+- Progressive difficulty building
+- Practical application scenarios
 
-This transforms Basecamp from a "companion app" into a complete learning platform while maintaining the modular architecture you've built.
+EXPERT AUDIO SCRIPT:
+- Write as an expert walking through the documentation
+- Use analogies for complex technical concepts
+- Include real-world implementation stories
+- Reference actual code/examples from source
+- Structure for natural speech delivery
+- Optimize for single-voice expert narrative
+
+GUARDRAILS:
+- Fact-check against source material
+- Maintain technical accuracy
+- Include source attribution
+- Flag areas needing human verification
+```
+
+### **Content Quality Assurance**
+- **Source Fidelity**: Maintain accuracy to original documentation
+- **Technical Precision**: Verify code examples and configurations
+- **Context Preservation**: Keep implementation details intact
+- **Update Detection**: Flag when source documentation changes
+
+## 📱 **MVP User Flow**
+
+### **Main Interface**
+```
+Basecamp Learning Platform
+
+┌─────────────────────────────────────────────┐
+│ Transform Technical Docs Into Learning     │
+│                                             │
+│ Input Source:                               │
+│ ┌─────────────────────────────────────────┐ │
+│ │ Paste documentation URL or upload file │ │
+│ └─────────────────────────────────────────┘ │
+│                                             │
+│ Setup: [Technical ▼] [Simple ▼]            │
+│ AI Provider: [OpenAI ▼] ✓ Configured       │
+│ Voice: [Browse 10K+ ElevenLabs voices ▼]   │
+│                                             │
+│        [Generate Learning Materials]       │
+│                                             │
+│ Est. Cost: AI ~$0.05 + Voice ~$0.02        │
+└─────────────────────────────────────────────┘
+```
+
+### **Generated Output**
+```
+📚 Kubernetes Networking Guide
+   Generated from: kubernetes.io/docs/concepts/services-networking/
+   
+   ├── 15 Technical Flashcards
+   │   ├── Network Policies fundamentals  
+   │   ├── Service types and use cases
+   │   └── Ingress configuration examples
+   │
+   └── 🎙️ Expert Audio Narrative (12 minutes)
+       ├── Voice: Technical Expert (David)
+       ├── Analogies for complex concepts
+       └── Real-world implementation stories
+
+[Study Flashcards] [Play Audio] [Download/Export]
+
+Total Cost: $0.07 (charged to your API accounts)
+```
+
+## 🛡️ **Security & Privacy**
+
+### **Local-First Architecture**
+- **API keys stored locally**: Browser localStorage only
+- **Direct API calls**: Browser → OpenAI/ElevenLabs (no proxy)
+- **No server-side storage**: Zero data retention on our servers
+- **Transparent operations**: Users see all prompts and API calls
+
+### **Quality Guardrails**
+- **Source verification**: Cross-check facts against original docs
+- **Technical accuracy**: Validate code examples and configurations  
+- **Bias detection**: Maintain neutral, educational tone
+- **Safety filtering**: Remove inappropriate or harmful content
+
+## 🎯 **MVP Implementation Phases**
+
+### **Phase 1: Core Foundation**
+- Setup path selection (Technical vs Simple)
+- BYOK for OpenAI/Anthropic (main AI)
+- Documentation URL processing
+- Basic flashcard generation
+- Simple expert prompting templates
+
+### **Phase 2: Premium Audio**
+- ElevenLabs API integration
+- Full voice library access (10K+ voices)
+- Expert narrative script generation
+- Single-voice teaching format optimization
+- Streaming audio delivery
+
+### **Phase 3: Advanced Processing**
+- File upload support (PDFs, markdown)
+- Code repository analysis
+- Custom prompt editing (technical users)
+- Advanced guardrails and fact-checking
+- Content update detection
+
+## 💡 **Key Differentiators**
+
+1. **Technical Documentation Expertise** - Specialized prompting for complex technical content
+2. **Premium Voice Experience** - Full ElevenLabs library with expert teaching formats
+3. **True BYOK** - Users control AI and voice costs directly
+4. **Setup Flexibility** - Technical control OR simple wizard
+5. **Source Fidelity** - Maintains accuracy to original technical documentation
+
+This MVP transforms any technical documentation into engaging, accurate learning materials with premium audio delivery, while giving users complete control over their AI costs and setup complexity.

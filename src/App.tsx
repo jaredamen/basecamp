@@ -1,163 +1,124 @@
-import React, { useState } from 'react';
-import type { TabType, FlashcardDeck, AudioBriefing } from './types';
-import { BottomNav } from './components/BottomNav';
-import { FlashcardDeck as FlashcardDeckComponent } from './components/FlashcardDeck';
-import { FlashcardViewer } from './components/FlashcardViewer';
-import { AudioFeed } from './components/AudioFeed';
-import { AudioPlayer } from './components/AudioPlayer';
-import { useFlashcards } from './hooks/useFlashcards';
-import { useAudioBriefings } from './hooks/useAudioPlayer';
-import './styles/globals.css';
+import { useState, useEffect } from 'react';
+import { useBYOK } from './hooks/useBYOK';
+import { useContentGeneration } from './hooks/useContentGeneration';
+import { useManaged } from './hooks/useManaged';
+import { BYOKSetupFlow } from './components/BYOKSetupFlow';
+import { DocumentationInput } from './components/DocumentationInput';
+import { LearningContentDisplay } from './components/LearningContentDisplay';
+import { LoadingIndicator } from './components/LoadingIndicator';
+import { CreditBalance } from './components/CreditBalance';
+import { TopUpModal } from './components/TopUpModal';
 
-type ViewState = 
-  | { type: 'flashcard-list' }
-  | { type: 'flashcard-viewer'; deck: FlashcardDeck }
-  | { type: 'audio-list' }
-  | { type: 'audio-player'; briefing: AudioBriefing };
+type AppState = 'setup' | 'input' | 'generating' | 'content';
 
 function App() {
-  const [activeTab, setActiveTab] = useState<TabType>('flashcards');
-  const [viewState, setViewState] = useState<ViewState>({ type: 'flashcard-list' });
-  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+  const [appState, setAppState] = useState<AppState>('setup');
+  const { isConfigured, isManaged } = useBYOK();
+  const {
+    isGenerating,
+    stage,
+    progress,
+    error,
+    insufficientCredits,
+    flashcards,
+    audioScript,
+    generateContent,
+    reset: resetGeneration
+  } = useContentGeneration();
+  const { balance, refreshBalance } = useManaged();
+  const [showTopUp, setShowTopUp] = useState(false);
 
-  const { 
-    decks, 
-    loading: decksLoading, 
-    error: decksError, 
-    addDecks 
-  } = useFlashcards();
-
-  const { 
-    briefings, 
-    loading: briefingsLoading, 
-    error: briefingsError, 
-    addBriefings 
-  } = useAudioBriefings();
-
-  React.useEffect(() => {
-    // Update view state when tab changes
-    if (activeTab === 'flashcards' && viewState.type.startsWith('audio')) {
-      setViewState({ type: 'flashcard-list' });
-    } else if (activeTab === 'audio' && viewState.type.startsWith('flashcard')) {
-      setViewState({ type: 'audio-list' });
+  // Handle Stripe redirect params
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('credits') === 'success') {
+      window.history.replaceState({}, '', window.location.pathname);
+      refreshBalance();
     }
-  }, [activeTab, viewState.type]);
+  }, [refreshBalance]);
 
-  const showToast = (message: string, type: 'success' | 'error') => {
-    setToast({ message, type });
-    setTimeout(() => setToast(null), 3000);
-  };
-
-  const handleDeckSelect = (deck: FlashcardDeck) => {
-    setViewState({ type: 'flashcard-viewer', deck });
-  };
-
-  const handleBriefingSelect = (briefing: AudioBriefing) => {
-    setViewState({ type: 'audio-player', briefing });
-  };
-
-  const handleBackToFlashcardList = () => {
-    setViewState({ type: 'flashcard-list' });
-  };
-
-  const handleBackToAudioList = () => {
-    setViewState({ type: 'audio-list' });
-  };
-
-  const handleFlashcardImport = (importedDecks: FlashcardDeck[]) => {
-    addDecks(importedDecks);
-    showToast(`Imported ${importedDecks.length} flashcard deck(s)`, 'success');
-  };
-
-  const handleAudioImport = (importedBriefings: AudioBriefing[]) => {
-    addBriefings(importedBriefings);
-    showToast(`Imported ${importedBriefings.length} audio briefing(s)`, 'success');
-  };
-
-  const handleError = (error: string) => {
-    showToast(error, 'error');
-  };
-
-  const renderContent = () => {
-    switch (viewState.type) {
-      case 'flashcard-list':
-        return (
-          <FlashcardDeckComponent
-            decks={decks}
-            loading={decksLoading}
-            onDeckSelect={handleDeckSelect}
-            onImport={handleFlashcardImport}
-            onError={handleError}
-          />
-        );
-      
-      case 'flashcard-viewer':
-        return (
-          <FlashcardViewer
-            deck={viewState.deck}
-            onBack={handleBackToFlashcardList}
-          />
-        );
-      
-      case 'audio-list':
-        return (
-          <AudioFeed
-            briefings={briefings}
-            loading={briefingsLoading}
-            onBriefingSelect={handleBriefingSelect}
-            onImport={handleAudioImport}
-            onError={handleError}
-          />
-        );
-      
-      case 'audio-player':
-        return (
-          <AudioPlayer
-            briefing={viewState.briefing}
-            onBack={handleBackToAudioList}
-          />
-        );
-      
-      default:
-        return null;
+  // Show top-up modal when insufficient credits error occurs
+  useEffect(() => {
+    if (insufficientCredits && isManaged) {
+      setShowTopUp(true);
     }
+  }, [insufficientCredits, isManaged]);
+
+  const handleSetupComplete = () => {
+    setAppState('input');
   };
 
-  // Determine if we should show the bottom nav
-  const showBottomNav = viewState.type === 'flashcard-list' || viewState.type === 'audio-list';
+  const handleGenerateContent = async (input: { url?: string; text?: string; type: 'url' | 'text' }) => {
+    setAppState('generating');
+    await generateContent(input);
+
+    setTimeout(() => {
+      if (flashcards && audioScript) {
+        setAppState('content');
+      } else {
+        setAppState('input');
+      }
+    }, 1000);
+  };
+
+  const handleBackToInput = () => {
+    resetGeneration();
+    setAppState('input');
+  };
+
+  // Determine which state to show
+  let currentState = appState;
+  if (currentState === 'setup' && isConfigured) {
+    currentState = 'input';
+  }
 
   return (
-    <div className="h-full flex flex-col bg-dark-900 text-dark-100">
-      {renderContent()}
-      
-      {showBottomNav && (
-        <BottomNav activeTab={activeTab} onTabChange={setActiveTab} />
-      )}
-
-      {/* Toast Notifications */}
-      {toast && (
-        <div className="fixed top-4 left-4 right-4 z-50">
-          <div className={`p-3 rounded-lg shadow-lg transition-all duration-300 ${
-            toast.type === 'success' 
-              ? 'bg-green-600 text-white' 
-              : 'bg-red-600 text-white'
-          }`}>
-            <p className="text-sm font-medium text-center">{toast.message}</p>
-          </div>
+    <div className="min-h-screen bg-gradient-to-br from-dark-900 via-dark-800 to-dark-900">
+      {/* Credit balance header for managed users */}
+      {isManaged && currentState !== 'setup' && (
+        <div className="fixed top-4 right-4 z-40">
+          <CreditBalance
+            balanceCents={balance}
+            onBalanceUpdate={refreshBalance}
+          />
         </div>
       )}
 
-      {/* Error States */}
-      {decksError && activeTab === 'flashcards' && (
-        <div className="fixed bottom-20 left-4 right-4 bg-red-600/20 border border-red-600/30 text-red-400 p-3 rounded-lg">
-          <p className="text-sm text-center">Failed to load flashcard decks</p>
-        </div>
+      {currentState === 'setup' && (
+        <BYOKSetupFlow onComplete={handleSetupComplete} />
       )}
-      
-      {briefingsError && activeTab === 'audio' && (
-        <div className="fixed bottom-20 left-4 right-4 bg-red-600/20 border border-red-600/30 text-red-400 p-3 rounded-lg">
-          <p className="text-sm text-center">Failed to load audio briefings</p>
-        </div>
+
+      {currentState === 'input' && (
+        <DocumentationInput
+          onGenerate={handleGenerateContent}
+          isGenerating={isGenerating}
+        />
+      )}
+
+      {currentState === 'generating' && (
+        <LoadingIndicator
+          stage={stage}
+          progress={progress}
+          error={error}
+          onRetry={handleBackToInput}
+        />
+      )}
+
+      {currentState === 'content' && flashcards && audioScript && (
+        <LearningContentDisplay
+          flashcards={flashcards}
+          audioScript={audioScript}
+          onBack={handleBackToInput}
+        />
+      )}
+
+      {/* Top-up modal for insufficient credits */}
+      {showTopUp && (
+        <TopUpModal
+          currentBalance={balance}
+          onClose={() => setShowTopUp(false)}
+          onPurchaseComplete={refreshBalance}
+        />
       )}
     </div>
   );

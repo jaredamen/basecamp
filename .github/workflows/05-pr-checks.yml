@@ -1,0 +1,121 @@
+name: 05 - Pull Request Checks
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+
+jobs:
+  pr-validation:
+    name: PR Validation
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.draft == false
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Check PR title format
+        run: |
+          PR_TITLE="${{ github.event.pull_request.title }}"
+          echo "PR Title: $PR_TITLE"
+          
+          # Check if title follows conventional commits format
+          if [[ ! "$PR_TITLE" =~ ^(feat|fix|docs|style|refactor|test|chore|ci)(\(.+\))?: .+ ]]; then
+            echo "❌ PR title should follow conventional commits format"
+            echo "Examples: 'feat: add TTS voice settings', 'fix: resolve audio player bug'"
+            exit 1
+          fi
+          
+          echo "✅ PR title format is valid"
+
+      - name: Check for breaking changes
+        run: |
+          # Look for breaking changes in commit messages
+          BREAKING_CHANGES=$(git log --oneline origin/main..HEAD | grep -i "breaking\|breaking change" || true)
+          
+          if [ ! -z "$BREAKING_CHANGES" ]; then
+            echo "## ⚠️ Breaking Changes Detected" >> $GITHUB_STEP_SUMMARY
+            echo "This PR contains breaking changes:" >> $GITHUB_STEP_SUMMARY
+            echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+            echo "$BREAKING_CHANGES" >> $GITHUB_STEP_SUMMARY
+            echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+            echo "Please ensure proper versioning and migration documentation." >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Validate package.json changes
+        run: |
+          if git diff --name-only origin/main..HEAD | grep -q "package.json"; then
+            echo "## 📦 Package.json Changes" >> $GITHUB_STEP_SUMMARY
+            echo "This PR modifies package.json. Please ensure:" >> $GITHUB_STEP_SUMMARY
+            echo "- Dependencies are necessary and secure" >> $GITHUB_STEP_SUMMARY
+            echo "- Version numbers follow semver" >> $GITHUB_STEP_SUMMARY
+            echo "- License compatibility is maintained" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Check test coverage
+        run: |
+          npm test -- --coverage --silent
+          
+          echo "## 📊 Test Coverage Report" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          cat coverage/coverage-summary.txt || echo "Coverage summary not available"
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+
+  auto-assign-reviewers:
+    name: Auto-assign Reviewers
+    runs-on: ubuntu-latest
+    if: github.event.action == 'opened'
+
+    steps:
+      - name: Request reviews
+        uses: actions/github-script@v7
+        with:
+          script: |
+            // Auto-assign reviewers based on changed files
+            const { data: files } = await github.rest.pulls.listFiles({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.issue.number,
+            });
+            
+            const changedFiles = files.map(file => file.filename);
+            console.log('Changed files:', changedFiles);
+            
+            // Add labels based on changes
+            const labels = [];
+            
+            if (changedFiles.some(f => f.startsWith('src/components/'))) {
+              labels.push('frontend');
+            }
+            
+            if (changedFiles.some(f => f.includes('test') || f.includes('spec'))) {
+              labels.push('testing');
+            }
+            
+            if (changedFiles.some(f => f.startsWith('.github/'))) {
+              labels.push('ci/cd');
+            }
+            
+            if (changedFiles.some(f => f.includes('package.json'))) {
+              labels.push('dependencies');
+            }
+            
+            if (labels.length > 0) {
+              await github.rest.issues.addLabels({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                labels: labels
+              });
+            }
