@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { config } from '../lib/config';
-import { signToken, setAuthCookie, upsertGoogleUser } from '../lib/auth';
+import { config } from '../_lib/config';
+import { signToken, setAuthCookie, upsertGoogleUser } from '../_lib/auth';
 
 // GET /api/auth/callback — Google OAuth callback
 // Exchanges the authorization code for tokens, fetches profile, upserts user, sets JWT cookie.

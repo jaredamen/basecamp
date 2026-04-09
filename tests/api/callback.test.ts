@@ -19,7 +19,7 @@ const mockFetch = vi.fn();
 vi.stubGlobal('fetch', mockFetch);
 
 // Mock the database
-vi.mock('../../api/lib/db', () => ({
+vi.mock('../../api/_lib/db', () => ({
   getDb: vi.fn(() => {
     // Return a tagged template function that simulates sql``
     const sql = (...args: any[]) => {
@@ -39,8 +39,8 @@ vi.mock('../../api/lib/db', () => ({
 }));
 
 import handler from '../../api/auth/callback';
-import { verifyToken } from '../../api/lib/auth';
-import { config } from '../../api/lib/config';
+import { verifyToken } from '../../api/_lib/auth';
+import { config } from '../../api/_lib/config';
 
 function mockReq(query: Record<string, string> = {}): any {
   return { method: 'GET', query };

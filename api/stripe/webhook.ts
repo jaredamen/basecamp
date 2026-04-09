@@ -1,10 +1,10 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import Stripe from 'stripe';
-import { config as appConfig } from '../lib/config';
-import { addCredits } from '../lib/credits';
-import { getDb } from '../lib/db';
+import { config as appConfig } from '../_lib/config';
+import { addCredits } from '../_lib/credits';
+import { getDb } from '../_lib/db';
 
-const stripe = new Stripe(appConfig.stripe.secretKey);
+const stripe = new (Stripe as any)(appConfig.stripe.secretKey) as Stripe;
 
 // Disable Vercel's default body parsing — Stripe needs the raw body for signature verification.
 export const config = {
@@ -30,7 +30,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(400).json({ error: 'Missing stripe-signature header' });
   }
 
-  let event: Stripe.Event;
+  let event: any;
   try {
     const rawBody = await readRawBody(req);
     event = stripe.webhooks.constructEvent(
@@ -53,7 +53,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   if (event.type === 'checkout.session.completed') {
-    const session = event.data.object as Stripe.Checkout.Session;
+    const session = event.data.object as any;
     const userId = session.metadata?.user_id;
     const tierCents = parseInt(session.metadata?.tier_cents || '0', 10);
 

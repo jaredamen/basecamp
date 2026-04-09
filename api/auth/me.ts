@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { getAuthUser } from '../lib/auth';
-import { getDb } from '../lib/db';
+import { getAuthUser } from '../_lib/auth';
+import { getDb } from '../_lib/db';
 
 // GET /api/auth/me — returns the current user's profile and credit balance.
 // Returns 401 if not authenticated.

@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { signToken, setAuthCookie, upsertGoogleUser } from '../lib/auth';
+import { signToken, setAuthCookie, upsertGoogleUser } from '../_lib/auth';
 
 // POST /api/auth/dev-login — Development-only endpoint.
 // Creates a fake user and sets the JWT cookie so you can test

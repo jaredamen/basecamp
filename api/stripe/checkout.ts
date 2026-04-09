@@ -1,9 +1,9 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import Stripe from 'stripe';
-import { requireAuth } from '../lib/auth';
-import { config } from '../lib/config';
+import { requireAuth } from '../_lib/auth';
+import { config } from '../_lib/config';
 
-const stripe = new Stripe(config.stripe.secretKey);
+const stripe = new (Stripe as any)(config.stripe.secretKey) as Stripe;
 
 const TIER_LABELS: Record<number, string> = {
   300: '$3.00',

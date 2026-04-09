@@ -9,7 +9,7 @@
     "rootDir": ".",
     "baseUrl": ".",
     "paths": {
-      "@lib/*": ["./lib/*"]
+      "@lib/*": ["./_lib/*"]
     },
     "types": ["node"]
   },
