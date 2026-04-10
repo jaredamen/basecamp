@@ -9,7 +9,7 @@ interface ManagedSetupFlowProps {
 }
 
 export function ManagedSetupFlow({ onComplete, onBack }: ManagedSetupFlowProps) {
-  const { session, loading, isAuthenticated, balance, refreshSession, refreshBalance } = useManaged();
+  const { session, loading, isAuthenticated, balance, refreshSession, refreshBalance, signOut } = useManaged();
   const [showTopUp, setShowTopUp] = useState(false);
 
   // Check URL params for Stripe redirect
@@ -62,6 +62,13 @@ export function ManagedSetupFlow({ onComplete, onBack }: ManagedSetupFlowProps) 
           >
             Start Learning
           </button>
+
+          <button
+            onClick={signOut}
+            className="block mx-auto text-dark-500 hover:text-dark-400 transition-colors text-xs"
+          >
+            Sign out
+          </button>
         </div>
       </div>
     );
@@ -105,12 +112,21 @@ export function ManagedSetupFlow({ onComplete, onBack }: ManagedSetupFlowProps) 
             Add Credits
           </button>
 
-          <button
-            onClick={onBack}
-            className="block mx-auto text-dark-400 hover:text-dark-300 transition-colors text-sm"
-          >
-            Back to setup options
-          </button>
+          <div className="flex items-center justify-center space-x-4 text-sm">
+            <button
+              onClick={onBack}
+              className="text-dark-400 hover:text-dark-300 transition-colors"
+            >
+              Back to setup options
+            </button>
+            <span className="text-dark-600">|</span>
+            <button
+              onClick={signOut}
+              className="text-dark-500 hover:text-dark-400 transition-colors"
+            >
+              Sign out
+            </button>
+          </div>
 
           {showTopUp && (
             <TopUpModal
