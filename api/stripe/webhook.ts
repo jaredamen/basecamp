@@ -1,8 +1,8 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import Stripe from 'stripe';
-import { config as appConfig } from '../_lib/config';
-import { addCredits } from '../_lib/credits';
-import { getDb } from '../_lib/db';
+import { config as appConfig } from '../../lib/config';
+import { addCredits } from '../../lib/credits';
+import { getDb } from '../../lib/db';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const stripe: any = new (Stripe as any)(appConfig.stripe.secretKey);

@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { config } from '../_lib/config';
+import { config } from '../../lib/config';
 
 // GET /api/auth/google — redirects user to Google OAuth consent screen
 export default function handler(req: VercelRequest, res: VercelResponse) {

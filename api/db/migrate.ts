@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { runMigrations } from '../_lib/db';
+import { runMigrations } from '../../lib/db';
 
 // POST /api/db/migrate — run once to set up the database schema.
 // In production, hit this endpoint once after connecting Vercel Postgres.

@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { requireAuth } from '../_lib/auth';
-import { textToSpeech } from '../_lib/openai';
-import { calculateTTSCostCents, deductCredits, refundCredits } from '../_lib/credits';
+import { requireAuth } from '../../lib/auth';
+import { textToSpeech } from '../../lib/openai';
+import { calculateTTSCostCents, deductCredits, refundCredits } from '../../lib/credits';
 
 // POST /api/proxy/tts — proxied OpenAI TTS with credit pre-deduction
 // Body: { text, voice?, speed? }

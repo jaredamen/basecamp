@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { requireAuth } from '../_lib/auth';
-import { getBalance } from '../_lib/credits';
+import { requireAuth } from '../../lib/auth';
+import { getBalance } from '../../lib/credits';
 
 // GET /api/credits/balance — returns the user's current credit balance
 export default async function handler(req: VercelRequest, res: VercelResponse) {

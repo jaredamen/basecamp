@@ -16,7 +16,7 @@ vi.stubEnv('GOOGLE_CLIENT_SECRET', 'test-google-client-secret');
 vi.stubEnv('GOOGLE_REDIRECT_URI', 'http://localhost:3000/api/auth/callback');
 
 // Mock the database module so auth.ts can be imported without a real DB
-vi.mock('../../api/_lib/db', () => ({
+vi.mock('../../lib/db', () => ({
   getDb: vi.fn(),
 }));
 
@@ -28,8 +28,8 @@ import {
   setAuthCookie,
   clearAuthCookie,
   withAuth,
-} from '../../api/_lib/auth';
-import { config } from '../../api/_lib/config';
+} from '../../lib/auth';
+import { config } from '../../lib/config';
 
 function mockReq(cookie?: string): any {
   return { headers: { cookie: cookie || '' } };
