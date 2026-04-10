@@ -2,6 +2,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { requireAuth } from '../../lib/auth.js';
 import { textToSpeech } from '../../lib/openai.js';
 import { calculateTTSCostCents, deductCredits, refundCredits } from '../../lib/credits.js';
+import { checkRateLimit, recordLLMRequest } from '../../lib/ratelimit.js';
 
 // POST /api/proxy/tts — proxied OpenAI TTS with credit pre-deduction
 // Body: { text, voice?, speed? }
@@ -12,6 +13,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const user = await requireAuth(req, res);
   if (!user) return;
+
+  // Rate limit check
+  const rateCheck = await checkRateLimit(user.id);
+  if (!rateCheck.ok) {
+    res.setHeader('Retry-After', String(rateCheck.retryAfterSeconds ?? 60));
+    return res.status(429).json({
+      error: rateCheck.reason,
+      message: rateCheck.message,
+    });
+  }
 
   const { text, voice, speed } = req.body;
 
@@ -38,6 +49,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   try {
     const audioBuffer = await textToSpeech({ text, voice, speed });
+
+    // Record the request — for TTS we use char count as a token-equivalent proxy
+    await recordLLMRequest(user.id, 'tts', text.length);
 
     res.setHeader('Content-Type', 'audio/mpeg');
     res.setHeader('X-Credits-Remaining', String(deduction.newBalance));

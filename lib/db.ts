@@ -47,7 +47,20 @@ export async function runMigrations() {
     )
   `;
 
+  // Per-request log used for rate limiting and session token budget enforcement.
+  // See lib/ratelimit.ts.
+  await sql`
+    CREATE TABLE IF NOT EXISTS llm_requests (
+      id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      user_id      UUID NOT NULL REFERENCES users(id),
+      endpoint     TEXT NOT NULL,
+      tokens_used  INTEGER NOT NULL DEFAULT 0,
+      created_at   TIMESTAMPTZ DEFAULT NOW()
+    )
+  `;
+
   await sql`CREATE INDEX IF NOT EXISTS idx_transactions_user_id ON credit_transactions(user_id)`;
   await sql`CREATE INDEX IF NOT EXISTS idx_transactions_created_at ON credit_transactions(created_at)`;
   await sql`CREATE INDEX IF NOT EXISTS idx_users_google_id ON users(google_id)`;
+  await sql`CREATE INDEX IF NOT EXISTS idx_llm_requests_user_created ON llm_requests(user_id, created_at)`;
 }

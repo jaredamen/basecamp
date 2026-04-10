@@ -158,6 +158,14 @@ export function TechnicalAPISetup({ onComplete, onBack }: TechnicalAPISetupProps
               </select>
             </div>
 
+            {/* BYOK Disclosure */}
+            <div className="bg-amber-900/20 border border-amber-700/50 rounded-lg p-3 text-xs text-amber-100">
+              <p className="font-semibold mb-1">Key safety:</p>
+              <p className="text-amber-200/90">
+                Your API key is held in memory only — never written to storage, database, or logs. Cleared on page reload. You'll re-enter it each session.
+              </p>
+            </div>
+
             {/* API Key */}
             <div className="space-y-3">
               <label className="block text-sm font-medium text-dark-200">API Key</label>
