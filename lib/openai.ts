@@ -1,4 +1,4 @@
-import { config } from './config';
+import { config } from './config.js';
 
 const OPENAI_BASE = 'https://api.openai.com/v1';
 

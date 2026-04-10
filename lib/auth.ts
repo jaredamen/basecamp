@@ -1,7 +1,7 @@
 import { SignJWT, jwtVerify } from 'jose';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { config } from './config';
-import { getDb } from './db';
+import { config } from './config.js';
+import { getDb } from './db.js';
 
 export interface JWTPayload {
   sub: string;   // user.id

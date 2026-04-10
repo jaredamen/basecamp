@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { requireAuth } from '../../lib/auth';
-import { chatCompletion } from '../../lib/openai';
-import { calculateChatCostCents, deductCredits, getBalance } from '../../lib/credits';
+import { requireAuth } from '../../lib/auth.js';
+import { chatCompletion } from '../../lib/openai.js';
+import { calculateChatCostCents, deductCredits, getBalance } from '../../lib/credits.js';
 
 // POST /api/proxy/chat — proxied OpenAI chat completion with credit deduction
 // Body: { messages, temperature?, max_tokens?, response_format? }

@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import Stripe from 'stripe';
-import { requireAuth } from '../../lib/auth';
-import { config } from '../../lib/config';
+import { requireAuth } from '../../lib/auth.js';
+import { config } from '../../lib/config.js';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const stripe: any = new (Stripe as any)(config.stripe.secretKey);

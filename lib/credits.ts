@@ -1,5 +1,5 @@
-import { config } from './config';
-import { getDb } from './db';
+import { config } from './config.js';
+import { getDb } from './db.js';
 
 // Calculate the cost in cents for a chat completion, with markup.
 export function calculateChatCostCents(usage: {
