@@ -3,7 +3,8 @@ import Stripe from 'stripe';
 import { requireAuth } from '../_lib/auth';
 import { config } from '../_lib/config';
 
-const stripe = new (Stripe as any)(config.stripe.secretKey) as Stripe;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const stripe: any = new (Stripe as any)(config.stripe.secretKey);
 
 const TIER_LABELS: Record<number, string> = {
   300: '$3.00',

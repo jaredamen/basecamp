@@ -4,7 +4,8 @@ import { config as appConfig } from '../_lib/config';
 import { addCredits } from '../_lib/credits';
 import { getDb } from '../_lib/db';
 
-const stripe = new (Stripe as any)(appConfig.stripe.secretKey) as Stripe;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const stripe: any = new (Stripe as any)(appConfig.stripe.secretKey);
 
 // Disable Vercel's default body parsing — Stripe needs the raw body for signature verification.
 export const config = {
