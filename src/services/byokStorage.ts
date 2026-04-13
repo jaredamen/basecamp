@@ -261,7 +261,7 @@ export class BYOKStorage {
   }
 
   private stripKey<T extends { apiKey: string }>(obj: T): Omit<T, 'apiKey'> {
-    const { apiKey, ...rest } = obj;
+    const { apiKey: _key, ...rest } = obj;
     return rest;
   }
 

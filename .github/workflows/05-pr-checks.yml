@@ -1,8 +1,10 @@
-name: 05 - Pull Request Checks
+name: 05 - PR Checks (DISABLED — see ci.yml)
 
+# Disabled — superseded by ci.yml. The aspirational checks here
+# (PR title format, breaking changes, coverage) reference scripts
+# and patterns we don't enforce yet.
 on:
-  pull_request:
-    types: [opened, synchronize, reopened, ready_for_review]
+  workflow_dispatch:
 
 jobs:
   pr-validation:

@@ -9,8 +9,8 @@ async function fetchWithTimeout(url: string, init: RequestInit): Promise<Respons
   const timeoutId = setTimeout(() => controller.abort(), LLM_TIMEOUT_MS);
   try {
     return await fetch(url, { ...init, signal: controller.signal });
-  } catch (err: any) {
-    if (err?.name === 'AbortError') {
+  } catch (err: unknown) {
+    if (err instanceof DOMException && err.name === 'AbortError') {
       throw new Error(`LLM request timed out after ${LLM_TIMEOUT_MS}ms`);
     }
     throw err;
@@ -388,6 +388,7 @@ ${flashcards.map(card => `- ${card.front}: ${card.back}`).join('\n')}
   // These let useContentGeneration build prompts and parse responses
   // without duplicating the prompt templates.
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   getFlashcardPrompt(content: string, _sourceType: 'url' | 'text'): string {
     return FLASHCARD_PROMPT.replace('{content}', wrapUntrusted(content));
   }
