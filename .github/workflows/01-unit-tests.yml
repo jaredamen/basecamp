@@ -1,10 +1,10 @@
-name: 01 - Unit & Integration Tests
+name: 01 - Unit & Integration Tests (DISABLED — see ci.yml)
 
+# Disabled — superseded by ci.yml. References scripts that don't exist
+# (type-check was added later) and uses an aspirational matrix.
+# Kept for reference; trigger manually if needed.
 on:
-  push:
-    branches: [ main, develop ]
-  pull_request:
-    branches: [ main, develop ]
+  workflow_dispatch:
 
 jobs:
   unit-tests:

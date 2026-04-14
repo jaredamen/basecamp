@@ -1,12 +1,10 @@
-name: 03 - Security Checks
+name: 03 - Security Audit
 
+# Runs weekly + on demand. Not blocking on PRs (npm audit findings are
+# usually transitive deps with no patch available).
 on:
-  push:
-    branches: [ main, develop ]
-  pull_request:
-    branches: [ main, develop ]
+  workflow_dispatch:
   schedule:
-    # Run weekly security audits
     - cron: '0 0 * * 0'
 
 jobs:

@@ -64,7 +64,7 @@ export class ProfileStorage {
       }
 
       // Remove version field for the runtime profile
-      const { version, ...profile } = parsed;
+      const { version: _version, ...profile } = parsed;
       return profile;
     } catch (error) {
       console.error('Failed to load profile:', error);

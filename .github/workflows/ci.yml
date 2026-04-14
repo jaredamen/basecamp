@@ -1,0 +1,51 @@
+name: CI
+
+# Runs on every PR to main and on every push to main.
+# All checks must pass before a PR can be merged (enforced via branch protection).
+#
+# Note: Vercel automatically runs its own build on every PR via the
+# Vercel GitHub integration and reports back as a separate status check.
+# So we don't run `vercel build` here — Vercel's check is the source of truth
+# for Vercel-specific issues. This workflow handles type/lint/test/build only.
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+# Cancel in-progress runs for the same PR/branch when a new push arrives.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ci:
+    name: Type check, lint, test, build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type check
+        run: npm run type-check
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Unit tests
+        run: npm test
+
+      - name: Build (Vite)
+        run: npm run build

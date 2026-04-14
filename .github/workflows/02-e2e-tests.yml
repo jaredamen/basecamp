@@ -1,10 +1,10 @@
-name: 02 - End-to-End Tests
+name: 02 - E2E Tests (DISABLED — manual only)
 
+# Disabled — references npm run test:e2e which doesn't exist (it's `npm run e2e`).
+# E2E tests need a running app + DB which is too heavy for every PR.
+# Trigger manually when needed before major releases.
 on:
-  push:
-    branches: [ main, develop ]
-  pull_request:
-    branches: [ main, develop ]
+  workflow_dispatch:
 
 jobs:
   e2e-tests:

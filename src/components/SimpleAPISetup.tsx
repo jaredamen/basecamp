@@ -176,6 +176,17 @@ export function SimpleAPISetup({ onComplete, onBack }: SimpleAPISetupProps) {
               </div>
             </div>
 
+            {/* BYOK Disclosure */}
+            <div className="bg-amber-900/20 border border-amber-700/50 rounded-lg p-4 text-sm text-amber-100 space-y-2">
+              <p className="font-semibold">You are using your own API key.</p>
+              <ul className="list-disc list-inside space-y-1 text-amber-200/90">
+                <li>Your key is used only to process your requests and is <strong>never stored</strong> in our systems or your browser storage.</li>
+                <li>All API usage in this session will be charged to your provider account.</li>
+                <li>Your key is held in memory for this session only and is cleared when you close or refresh the page.</li>
+                <li>You will need to re-enter your key each time you start a new session.</li>
+              </ul>
+            </div>
+
             {/* API Key Input */}
             <div className="space-y-4">
               <label className="block text-sm font-medium text-dark-200">API Key</label>
@@ -257,6 +268,14 @@ export function SimpleAPISetup({ onComplete, onBack }: SimpleAPISetupProps) {
                   </div>
                 </div>
               </div>
+            </div>
+
+            {/* BYOK Disclosure */}
+            <div className="bg-amber-900/20 border border-amber-700/50 rounded-lg p-4 text-sm text-amber-100 space-y-2">
+              <p className="font-semibold">Same key safety policy applies.</p>
+              <p className="text-amber-200/90">
+                Your ElevenLabs key is held in memory for this session only and is never stored. You'll re-enter it on your next visit.
+              </p>
             </div>
 
             {/* API Key Input */}

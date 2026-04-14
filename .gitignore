@@ -30,3 +30,10 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Local-only project docs (kept out of revision control)
+CLAUDE.md
+PLAN.md
+MANUAL_TODO.md
+SETUP_GUIDE.md
+llm_compliance/

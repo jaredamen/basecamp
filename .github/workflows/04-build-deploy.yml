@@ -1,8 +1,8 @@
-name: 04 - Build & Deploy
+name: 04 - Build artifact (DISABLED — Vercel handles deploys)
 
+# Disabled — Vercel handles building and deploying directly from main pushes.
+# This workflow is redundant. Kept for reference / manual trigger only.
 on:
-  push:
-    branches: [ main ]
   workflow_dispatch:
 
 jobs:
