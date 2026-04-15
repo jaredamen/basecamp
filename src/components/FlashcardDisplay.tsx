@@ -52,6 +52,17 @@ export function FlashcardDisplay({ flashcardSet, onComplete }: FlashcardDisplayP
       <div className="max-w-4xl mx-auto space-y-6">
         {/* Header */}
         <div className="text-center space-y-4">
+          {onComplete && (
+            <button
+              onClick={onComplete}
+              className="inline-flex items-center text-dark-400 hover:text-dark-200 transition-colors text-sm"
+            >
+              <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+              </svg>
+              Back to overview
+            </button>
+          )}
           <h1 className="text-3xl font-bold text-white">{flashcardSet.title}</h1>
           <p className="text-dark-300">{flashcardSet.description}</p>
           
