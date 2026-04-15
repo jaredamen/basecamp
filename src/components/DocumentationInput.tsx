@@ -47,10 +47,10 @@ export function DocumentationInput({ onGenerate, isGenerating = false }: Documen
   };
 
   const exampleUrls = [
+    { name: 'Stoic Philosophy', url: 'https://en.wikipedia.org/wiki/Stoicism' },
     { name: 'React Docs', url: 'https://react.dev/learn' },
-    { name: 'Next.js Docs', url: 'https://nextjs.org/docs' },
-    { name: 'TypeScript Handbook', url: 'https://www.typescriptlang.org/docs/' },
-    { name: 'MDN Web APIs', url: 'https://developer.mozilla.org/en-US/docs/Web/API' }
+    { name: 'History of Jazz', url: 'https://en.wikipedia.org/wiki/Jazz' },
+    { name: 'Anime & Manga', url: 'https://en.wikipedia.org/wiki/Anime' },
   ];
 
   return (
@@ -58,12 +58,11 @@ export function DocumentationInput({ onGenerate, isGenerating = false }: Documen
       <div className="max-w-4xl mx-auto space-y-8">
         {/* Header */}
         <div className="text-center space-y-4">
-          <div className="text-5xl">📚</div>
           <h1 className="text-3xl font-bold text-white">
-            Transform Documentation Into Learning
+            Learn Anything, Your Way
           </h1>
           <p className="text-xl text-blue-300">
-            Turn any technical documentation into flashcards and expert audio narratives
+            Paste a URL or any text — we'll turn it into flashcards and expert audio lessons
           </p>
         </div>
 
@@ -78,7 +77,7 @@ export function DocumentationInput({ onGenerate, isGenerating = false }: Documen
                   : 'text-dark-300 hover:text-white hover:bg-dark-700'
               }`}
             >
-              📄 Documentation URL
+              From a URL
             </button>
             <button
               onClick={() => setInputType('text')}
@@ -88,7 +87,7 @@ export function DocumentationInput({ onGenerate, isGenerating = false }: Documen
                   : 'text-dark-300 hover:text-white hover:bg-dark-700'
               }`}
             >
-              ✏️ Paste Content
+              Paste Content
             </button>
           </div>
         </div>
@@ -99,16 +98,16 @@ export function DocumentationInput({ onGenerate, isGenerating = false }: Documen
             <div className="space-y-4">
               <div className="space-y-2">
                 <label className="block text-lg font-medium text-white">
-                  Documentation URL
+                  Paste any URL
                 </label>
                 <p className="text-sm text-dark-300">
-                  Enter the URL of any technical documentation, tutorial, or guide
+                  Wiki pages, articles, documentation, blog posts, research papers — anything with text
                 </p>
                 <input
                   type="url"
                   value={url}
                   onChange={(e) => setUrl(e.target.value)}
-                  placeholder="https://example.com/docs/getting-started"
+                  placeholder="https://en.wikipedia.org/wiki/Stoicism"
                   className="w-full px-4 py-3 bg-dark-800 border border-dark-700 rounded-lg text-white text-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none transition-colors"
                 />
                 {errors.url && (
@@ -118,7 +117,7 @@ export function DocumentationInput({ onGenerate, isGenerating = false }: Documen
 
               {/* Example URLs */}
               <div className="space-y-3">
-                <p className="text-sm font-medium text-dark-200">Popular Examples:</p>
+                <p className="text-sm font-medium text-dark-200">Try these:</p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   {exampleUrls.map((example, index) => (
                     <button
@@ -141,37 +140,24 @@ export function DocumentationInput({ onGenerate, isGenerating = false }: Documen
             <div className="space-y-4">
               <div className="space-y-2">
                 <label className="block text-lg font-medium text-white">
-                  Technical Content
+                  Your Content
                 </label>
                 <p className="text-sm text-dark-300">
-                  Paste documentation, code comments, README files, or any technical content
+                  Paste anything — articles, notes, poems, documentation, papers, or any text you want to learn from
                 </p>
                 <textarea
                   value={text}
                   onChange={(e) => setText(e.target.value)}
-                  placeholder="Paste your technical documentation here...
+                  placeholder={`Paste any content you want to learn from...
 
-Example:
-# Getting Started with React Hooks
+For example:
+- A Wikipedia article about ancient Rome
+- Notes from a lecture on quantum physics
+- A poem you want to analyze and understand
+- Technical documentation for an API
+- A chapter from a philosophy book
 
-React Hooks let you use state and other React features without writing a class. The useState Hook lets you add state to function components:
-
-```javascript
-import React, { useState } from 'react';
-
-function Counter() {
-  const [count, setCount] = useState(0);
-  
-  return (
-    <div>
-      <p>You clicked {count} times</p>
-      <button onClick={() => setCount(count + 1)}>
-        Click me
-      </button>
-    </div>
-  );
-}
-```"
+The AI will extract key concepts, create flashcards for active recall, and write an expert audio lesson that teaches through analogies and stories.`}
                   rows={12}
                   className="w-full px-4 py-3 bg-dark-800 border border-dark-700 rounded-lg text-white text-sm focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20 outline-none transition-colors resize-y"
                 />
@@ -199,10 +185,10 @@ function Counter() {
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                   </svg>
-                  Generating Learning Content...
+                  Generating...
                 </span>
               ) : (
-                '🚀 Generate Learning Content'
+                'Generate Learning Content'
               )}
             </button>
           </div>
@@ -213,23 +199,23 @@ function Counter() {
               <div className="text-3xl mb-2">🧠</div>
               <h3 className="font-semibold text-white">Smart Flashcards</h3>
               <p className="text-xs text-dark-400 mt-1">
-                Key concepts extracted and turned into spaced repetition cards
+                Key ideas extracted and turned into study cards
               </p>
             </div>
-            
+
             <div className="text-center p-4 bg-dark-800/30 rounded-lg border border-dark-700">
               <div className="text-3xl mb-2">🎙️</div>
               <h3 className="font-semibold text-white">Expert Audio</h3>
               <p className="text-xs text-dark-400 mt-1">
-                Professional narration with premium ElevenLabs voices
+                Listen to expert explanations using analogies and stories
               </p>
             </div>
-            
+
             <div className="text-center p-4 bg-dark-800/30 rounded-lg border border-dark-700">
               <div className="text-3xl mb-2">🎯</div>
-              <h3 className="font-semibold text-white">Adaptive Learning</h3>
+              <h3 className="font-semibold text-white">Actually Remember</h3>
               <p className="text-xs text-dark-400 mt-1">
-                Content adapted to your technical background and learning style
+                Content designed to help you understand and retain
               </p>
             </div>
           </div>

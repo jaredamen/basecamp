@@ -6,7 +6,7 @@ import { BYOKSetupFlow } from './components/BYOKSetupFlow';
 import { DocumentationInput } from './components/DocumentationInput';
 import { LearningContentDisplay } from './components/LearningContentDisplay';
 import { LoadingIndicator } from './components/LoadingIndicator';
-import { CreditBalance } from './components/CreditBalance';
+import { AppHeader } from './components/AppHeader';
 import { TopUpModal } from './components/TopUpModal';
 
 type AppState = 'setup' | 'input' | 'generating' | 'content';
@@ -15,7 +15,6 @@ function App() {
   const [appState, setAppState] = useState<AppState>('setup');
   const { isConfigured, isManaged } = useBYOK();
   const {
-    isGenerating,
     stage,
     progress,
     error,
@@ -25,7 +24,7 @@ function App() {
     generateContent,
     reset: resetGeneration
   } = useContentGeneration();
-  const { balance, refreshBalance } = useManaged();
+  const { session, balance, refreshBalance, signOut } = useManaged();
   const [showTopUp, setShowTopUp] = useState(false);
 
   // Handle Stripe redirect params
@@ -37,12 +36,12 @@ function App() {
     }
   }, [refreshBalance]);
 
-  // Show top-up modal when insufficient credits error occurs
+  // Auto-transition to content when generation completes successfully
   useEffect(() => {
-    if (insufficientCredits && isManaged) {
-      setShowTopUp(true);
+    if (stage === 'complete' && flashcards && audioScript) {
+      setAppState('content');
     }
-  }, [insufficientCredits, isManaged]);
+  }, [stage, flashcards, audioScript]);
 
   const handleSetupComplete = () => {
     setAppState('input');
@@ -51,19 +50,32 @@ function App() {
   const handleGenerateContent = async (input: { url?: string; text?: string; type: 'url' | 'text' }) => {
     setAppState('generating');
     await generateContent(input);
-
-    setTimeout(() => {
-      if (flashcards && audioScript) {
-        setAppState('content');
-      } else {
-        setAppState('input');
-      }
-    }, 1000);
+    // Don't auto-transition here — the useEffect above handles success,
+    // and errors stay on the generating screen so the user can read them.
   };
 
+  // Navigate to input without losing generated content
+  const handleNavigateHome = () => {
+    setAppState('input');
+  };
+
+  // Navigate to content (only if content exists)
+  const handleNavigateContent = () => {
+    if (flashcards && audioScript) {
+      setAppState('content');
+    }
+  };
+
+  // Go back from error/loading to input
   const handleBackToInput = () => {
     resetGeneration();
     setAppState('input');
+  };
+
+  const handleSignOut = async () => {
+    await signOut();
+    resetGeneration();
+    setAppState('setup');
   };
 
   // Determine which state to show
@@ -72,47 +84,58 @@ function App() {
     currentState = 'input';
   }
 
+  const hasContent = !!(flashcards && audioScript);
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-dark-900 via-dark-800 to-dark-900">
-      {/* Credit balance header for managed users */}
+      {/* Persistent header for all non-setup screens */}
       {isManaged && currentState !== 'setup' && (
-        <div className="fixed top-4 right-4 z-40">
-          <CreditBalance
-            balanceCents={balance}
-            onBalanceUpdate={refreshBalance}
+        <AppHeader
+          userName={session?.name || session?.email}
+          balanceCents={balance}
+          hasContent={hasContent}
+          currentView={currentState === 'content' ? 'content' : currentState === 'generating' ? 'generating' : 'input'}
+          onNavigateHome={handleNavigateHome}
+          onNavigateContent={handleNavigateContent}
+          onAddCredits={() => setShowTopUp(true)}
+          onSignOut={handleSignOut}
+        />
+      )}
+
+      {/* Add top padding when header is shown */}
+      <div className={isManaged && currentState !== 'setup' ? 'pt-14' : ''}>
+        {currentState === 'setup' && (
+          <BYOKSetupFlow onComplete={handleSetupComplete} />
+        )}
+
+        {currentState === 'input' && (
+          <DocumentationInput
+            onGenerate={handleGenerateContent}
+            isGenerating={false}
           />
-        </div>
-      )}
+        )}
 
-      {currentState === 'setup' && (
-        <BYOKSetupFlow onComplete={handleSetupComplete} />
-      )}
+        {currentState === 'generating' && (
+          <LoadingIndicator
+            stage={stage}
+            progress={progress}
+            error={error}
+            insufficientCredits={insufficientCredits}
+            onRetry={handleBackToInput}
+            onAddCredits={() => setShowTopUp(true)}
+          />
+        )}
 
-      {currentState === 'input' && (
-        <DocumentationInput
-          onGenerate={handleGenerateContent}
-          isGenerating={isGenerating}
-        />
-      )}
+        {currentState === 'content' && flashcards && audioScript && (
+          <LearningContentDisplay
+            flashcards={flashcards}
+            audioScript={audioScript}
+            onBack={handleNavigateHome}
+          />
+        )}
+      </div>
 
-      {currentState === 'generating' && (
-        <LoadingIndicator
-          stage={stage}
-          progress={progress}
-          error={error}
-          onRetry={handleBackToInput}
-        />
-      )}
-
-      {currentState === 'content' && flashcards && audioScript && (
-        <LearningContentDisplay
-          flashcards={flashcards}
-          audioScript={audioScript}
-          onBack={handleBackToInput}
-        />
-      )}
-
-      {/* Top-up modal for insufficient credits */}
+      {/* Top-up modal */}
       {showTopUp && (
         <TopUpModal
           currentBalance={balance}
