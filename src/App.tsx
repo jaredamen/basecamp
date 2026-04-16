@@ -13,7 +13,7 @@ type AppState = 'setup' | 'input' | 'generating' | 'content';
 
 function App() {
   const [appState, setAppState] = useState<AppState>('setup');
-  const { isConfigured, isManaged } = useBYOK();
+  const { isConfigured, isManaged, clearConfig } = useBYOK();
   const {
     stage,
     progress,
@@ -24,7 +24,7 @@ function App() {
     generateContent,
     reset: resetGeneration
   } = useContentGeneration();
-  const { session, billing, refreshBilling, signOut } = useManaged();
+  const { session, billing, isAuthenticated, loading: managedLoading, refreshBilling, signOut } = useManaged();
   const [showPaymentModal, setShowPaymentModal] = useState(false);
 
   // Handle Stripe redirect params (after adding payment method)
@@ -69,6 +69,7 @@ function App() {
 
   const handleSignOut = async () => {
     await signOut();
+    clearConfig();
     resetGeneration();
     setAppState('setup');
   };
@@ -79,16 +80,26 @@ function App() {
 
   // Determine which state to show
   let currentState = appState;
-  if (currentState === 'setup' && isConfigured) {
+
+  // For managed users: must be authenticated to access the app.
+  // If localStorage says managed but session is null (expired/logged out),
+  // force them back to setup so they see the sign-in screen.
+  const managedButNotAuth = isManaged && !isAuthenticated && !managedLoading;
+
+  if (managedButNotAuth) {
+    currentState = 'setup';
+  } else if (currentState === 'setup' && isConfigured && (!isManaged || isAuthenticated)) {
     currentState = 'input';
   }
 
+  // Only show header when user is actually authenticated (managed) or using BYOK
+  const showHeader = isManaged && isAuthenticated && currentState !== 'setup';
   const hasContent = !!(flashcards && audioScript);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-dark-900 via-dark-800 to-dark-900">
-      {/* Persistent header for all non-setup screens */}
-      {isManaged && currentState !== 'setup' && (
+      {/* Persistent header — only for authenticated managed users */}
+      {showHeader && (
         <AppHeader
           userName={session?.name || session?.email}
           usageCents={billing?.currentMonthUsageCents ?? 0}
@@ -103,7 +114,7 @@ function App() {
         />
       )}
 
-      <div className={isManaged && currentState !== 'setup' ? 'pt-14' : ''}>
+      <div className={showHeader ? 'pt-14' : ''}>
         {currentState === 'setup' && (
           <BYOKSetupFlow onComplete={handleSetupComplete} />
         )}
@@ -111,7 +122,7 @@ function App() {
         {currentState === 'input' && (
           <DocumentationInput
             onGenerate={handleGenerateContent}
-            isGenerating={false}
+            isGenerating={appState === 'generating'}
           />
         )}
 
@@ -138,10 +149,6 @@ function App() {
       {showPaymentModal && (
         <AddPaymentModal
           onClose={() => setShowPaymentModal(false)}
-          onSuccess={() => {
-            setShowPaymentModal(false);
-            refreshBilling();
-          }}
         />
       )}
     </div>

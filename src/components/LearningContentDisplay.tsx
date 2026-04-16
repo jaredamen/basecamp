@@ -9,7 +9,7 @@ interface LearningContentDisplayProps {
   onBack: () => void;
 }
 
-type ViewMode = 'overview' | 'flashcards' | 'audio' | 'combined';
+type ViewMode = 'overview' | 'flashcards' | 'audio';
 
 export function LearningContentDisplay({ 
   flashcards, 
@@ -61,11 +61,7 @@ export function LearningContentDisplay({
               </button>
               <button
                 onClick={() => setViewMode('flashcards')}
-                className={`px-4 py-2 rounded-md font-medium transition-all ${
-                  (viewMode as string) === 'flashcards'
-                    ? 'bg-green-600 text-white'
-                    : 'text-dark-300 hover:text-white'
-                }`}
+                className="px-4 py-2 rounded-md font-medium transition-all text-dark-300 hover:text-white"
               >
                 🧠 Study Cards
               </button>

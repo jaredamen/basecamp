@@ -2,10 +2,9 @@ import { useState } from 'react';
 
 interface AddPaymentModalProps {
   onClose: () => void;
-  onSuccess: () => void;
 }
 
-export function AddPaymentModal({ onClose, onSuccess: _onSuccess }: AddPaymentModalProps) {
+export function AddPaymentModal({ onClose }: AddPaymentModalProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
