@@ -5,9 +5,18 @@ import {
   type ManagedUserSession,
 } from '../services/managedAuth';
 
+interface BillingStatus {
+  canGenerate: boolean;
+  reason?: string;
+  freeRemainingCents: number;
+  hasPaymentMethod: boolean;
+  currentMonthUsageCents: number;
+}
+
 export function useManaged() {
   const [session, setSession] = useState<ManagedUserSession | null>(null);
   const [loading, setLoading] = useState(true);
+  const [billing, setBilling] = useState<BillingStatus | null>(null);
 
   // Check auth state on mount
   useEffect(() => {
@@ -22,24 +31,44 @@ export function useManaged() {
     return updated;
   }, []);
 
-  const refreshBalance = useCallback(async () => {
-    const updated = await getSession();
-    if (updated) setSession(updated);
-    return updated?.creditBalanceCents ?? 0;
+  const refreshBilling = useCallback(async () => {
+    try {
+      const res = await fetch('/api/billing/status', { credentials: 'include' });
+      if (res.ok) {
+        const data = await res.json();
+        setBilling(data);
+        return data;
+      }
+    } catch {
+      // ignore
+    }
+    return null;
   }, []);
+
+  // Fetch billing status when session is available
+  useEffect(() => {
+    if (session) {
+      refreshBilling();
+    }
+  }, [session, refreshBilling]);
 
   const signOut = useCallback(async () => {
     await authSignOut();
     setSession(null);
+    setBilling(null);
   }, []);
 
   return {
     session,
     loading,
     isAuthenticated: !!session,
-    balance: session?.creditBalanceCents ?? 0,
+    billing,
+    // Backwards compat: balance from billing status (usage this month in cents)
+    balance: billing?.currentMonthUsageCents ?? 0,
     refreshSession,
-    refreshBalance,
+    refreshBilling,
+    // Keep old name for backwards compat
+    refreshBalance: refreshBilling,
     signOut,
   };
 }

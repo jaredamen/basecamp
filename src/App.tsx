@@ -7,7 +7,7 @@ import { DocumentationInput } from './components/DocumentationInput';
 import { LearningContentDisplay } from './components/LearningContentDisplay';
 import { LoadingIndicator } from './components/LoadingIndicator';
 import { AppHeader } from './components/AppHeader';
-import { TopUpModal } from './components/TopUpModal';
+import { AddPaymentModal } from './components/AddPaymentModal';
 
 type AppState = 'setup' | 'input' | 'generating' | 'content';
 
@@ -24,17 +24,17 @@ function App() {
     generateContent,
     reset: resetGeneration
   } = useContentGeneration();
-  const { session, balance, refreshBalance, signOut } = useManaged();
-  const [showTopUp, setShowTopUp] = useState(false);
+  const { session, billing, refreshBilling, signOut } = useManaged();
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
 
-  // Handle Stripe redirect params
+  // Handle Stripe redirect params (after adding payment method)
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    if (params.get('credits') === 'success') {
+    if (params.get('billing') === 'success' || params.get('credits') === 'success') {
       window.history.replaceState({}, '', window.location.pathname);
-      refreshBalance();
+      refreshBilling();
     }
-  }, [refreshBalance]);
+  }, [refreshBilling]);
 
   // Auto-transition to content when generation completes successfully
   useEffect(() => {
@@ -50,23 +50,18 @@ function App() {
   const handleGenerateContent = async (input: { url?: string; text?: string; type: 'url' | 'text' }) => {
     setAppState('generating');
     await generateContent(input);
-    // Don't auto-transition here — the useEffect above handles success,
-    // and errors stay on the generating screen so the user can read them.
   };
 
-  // Navigate to input without losing generated content
   const handleNavigateHome = () => {
     setAppState('input');
   };
 
-  // Navigate to content (only if content exists)
   const handleNavigateContent = () => {
     if (flashcards && audioScript) {
       setAppState('content');
     }
   };
 
-  // Go back from error/loading to input
   const handleBackToInput = () => {
     resetGeneration();
     setAppState('input');
@@ -76,6 +71,10 @@ function App() {
     await signOut();
     resetGeneration();
     setAppState('setup');
+  };
+
+  const handleAddPaymentMethod = () => {
+    setShowPaymentModal(true);
   };
 
   // Determine which state to show
@@ -92,17 +91,18 @@ function App() {
       {isManaged && currentState !== 'setup' && (
         <AppHeader
           userName={session?.name || session?.email}
-          balanceCents={balance}
+          usageCents={billing?.currentMonthUsageCents ?? 0}
+          hasPaymentMethod={billing?.hasPaymentMethod ?? false}
+          freeRemainingCents={billing?.freeRemainingCents ?? 50}
           hasContent={hasContent}
           currentView={currentState === 'content' ? 'content' : currentState === 'generating' ? 'generating' : 'input'}
           onNavigateHome={handleNavigateHome}
           onNavigateContent={handleNavigateContent}
-          onAddCredits={() => setShowTopUp(true)}
+          onAddPaymentMethod={handleAddPaymentMethod}
           onSignOut={handleSignOut}
         />
       )}
 
-      {/* Add top padding when header is shown */}
       <div className={isManaged && currentState !== 'setup' ? 'pt-14' : ''}>
         {currentState === 'setup' && (
           <BYOKSetupFlow onComplete={handleSetupComplete} />
@@ -122,7 +122,7 @@ function App() {
             error={error}
             insufficientCredits={insufficientCredits}
             onRetry={handleBackToInput}
-            onAddCredits={() => setShowTopUp(true)}
+            onAddCredits={handleAddPaymentMethod}
           />
         )}
 
@@ -135,12 +135,13 @@ function App() {
         )}
       </div>
 
-      {/* Top-up modal */}
-      {showTopUp && (
-        <TopUpModal
-          currentBalance={balance}
-          onClose={() => setShowTopUp(false)}
-          onPurchaseComplete={refreshBalance}
+      {showPaymentModal && (
+        <AddPaymentModal
+          onClose={() => setShowPaymentModal(false)}
+          onSuccess={() => {
+            setShowPaymentModal(false);
+            refreshBilling();
+          }}
         />
       )}
     </div>
