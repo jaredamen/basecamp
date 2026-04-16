@@ -112,7 +112,7 @@ function App() {
         {currentState === 'input' && (
           <DocumentationInput
             onGenerate={handleGenerateContent}
-            isGenerating={false}
+            isGenerating={appState === 'generating'}
           />
         )}
 
@@ -139,10 +139,6 @@ function App() {
       {showPaymentModal && (
         <AddPaymentModal
           onClose={() => setShowPaymentModal(false)}
-          onSuccess={() => {
-            setShowPaymentModal(false);
-            refreshBilling();
-          }}
         />
       )}
     </div>

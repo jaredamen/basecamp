@@ -228,29 +228,27 @@ ${flashcards.map(card => `- ${card.front}: ${card.back}`).join('\n')}
 
   async fetchContentFromUrl(url: string): Promise<string> {
     try {
-      // For now, we'll use a simple fetch. In production, you might want
-      // to use a more robust solution that handles different content types,
-      // JavaScript-rendered content, etc.
-      const response = await fetch(url);
+      // Use our server-side fetch endpoint to avoid CORS issues.
+      // Most sites (Wikipedia, etc.) don't allow browser cross-origin fetches.
+      const response = await fetch('/api/proxy/fetch-url', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ url }),
+      });
+
       if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data.error || `Failed to fetch URL (${response.status})`);
       }
-      
-      const html = await response.text();
-      
-      // Basic HTML to text conversion
-      // In production, consider using a library like 'html-to-text'
-      const textContent = html
-        .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
-        .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, '')
-        .replace(/<[^>]+>/g, ' ')
-        .replace(/\s+/g, ' ')
-        .trim();
-      
+
+      const data = await response.json();
+      const textContent = data.content || '';
+
       if (textContent.length < 100) {
         throw new Error('Unable to extract meaningful content from URL');
       }
-      
+
       return textContent;
     } catch (error) {
       console.error('Failed to fetch content from URL:', error);
