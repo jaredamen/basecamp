@@ -120,8 +120,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       });
     }
 
-    // Cap returned content at 100,000 chars (roughly 25k tokens) to protect downstream AI costs
-    const capped = textContent.slice(0, 100_000);
+    // Cap returned content at 20,000 chars (roughly 5k tokens) to keep AI costs reasonable.
+    // Wikipedia articles can be 100k+ chars — we only need the first ~20k for good flashcards.
+    const capped = textContent.slice(0, 20_000);
 
     return res.status(200).json({ content: capped });
   } catch (err: unknown) {
