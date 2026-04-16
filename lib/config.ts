@@ -64,9 +64,12 @@ export const config = {
   // OpenAI TTS pricing (dollars per character)
   openaiTTSPricePerChar: 0.000015,
 
-  // App URLs — APP_URL overrides VERCEL_URL for local dev (set to http://localhost:5173)
+  // App URL for redirects (OAuth callback, Stripe return, etc).
+  // VERCEL_PROJECT_PRODUCTION_URL is the stable production domain (e.g. basecamp-pink.vercel.app).
+  // VERCEL_URL is the deployment-specific URL which changes every deploy — don't use for redirects.
   get appUrl(): string {
     if (process.env.APP_URL) return process.env.APP_URL;
+    if (process.env.VERCEL_PROJECT_PRODUCTION_URL) return `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`;
     if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`;
     return 'http://localhost:5173';
   },
