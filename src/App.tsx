@@ -13,7 +13,7 @@ type AppState = 'setup' | 'input' | 'generating' | 'content';
 
 function App() {
   const [appState, setAppState] = useState<AppState>('setup');
-  const { isConfigured, isManaged } = useBYOK();
+  const { isConfigured, isManaged, clearConfig } = useBYOK();
   const {
     stage,
     progress,
@@ -69,6 +69,7 @@ function App() {
 
   const handleSignOut = async () => {
     await signOut();
+    clearConfig();
     resetGeneration();
     setAppState('setup');
   };
