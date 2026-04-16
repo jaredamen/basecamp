@@ -1,25 +1,30 @@
 interface AppHeaderProps {
   userName?: string;
-  balanceCents: number;
+  usageCents: number;
+  hasPaymentMethod: boolean;
+  freeRemainingCents: number;
   hasContent: boolean;
   currentView: 'input' | 'generating' | 'content';
   onNavigateHome: () => void;
   onNavigateContent: () => void;
-  onAddCredits: () => void;
+  onAddPaymentMethod: () => void;
   onSignOut: () => void;
 }
 
 export function AppHeader({
   userName,
-  balanceCents,
+  usageCents,
+  hasPaymentMethod,
+  freeRemainingCents,
   hasContent,
   currentView,
   onNavigateHome,
   onNavigateContent,
-  onAddCredits,
+  onAddPaymentMethod,
   onSignOut,
 }: AppHeaderProps) {
-  const dollars = (balanceCents / 100).toFixed(2);
+  const usageDollars = (usageCents / 100).toFixed(2);
+  const freeDollars = (freeRemainingCents / 100).toFixed(2);
 
   return (
     <header className="fixed top-0 left-0 right-0 z-50 bg-dark-900/95 backdrop-blur-sm border-b border-dark-700">
@@ -59,15 +64,24 @@ export function AppHeader({
           </nav>
         </div>
 
-        {/* Right: Balance + account */}
+        {/* Right: Usage + account */}
         <div className="flex items-center space-x-4">
-          <button
-            onClick={onAddCredits}
-            className="text-sm font-medium text-green-400 hover:text-green-300 transition-colors"
-            title="Click to add credits"
-          >
-            ${dollars}
-          </button>
+          {hasPaymentMethod ? (
+            <span className="text-sm text-dark-400">
+              Usage: <span className="text-white font-medium">${usageDollars}</span>
+            </span>
+          ) : freeRemainingCents > 0 ? (
+            <span className="text-sm text-dark-400">
+              Free: <span className="text-green-400 font-medium">${freeDollars} left</span>
+            </span>
+          ) : (
+            <button
+              onClick={onAddPaymentMethod}
+              className="text-sm font-medium text-blue-400 hover:text-blue-300 transition-colors"
+            >
+              Add payment method
+            </button>
+          )}
 
           {userName && (
             <span className="hidden sm:inline text-sm text-dark-400">

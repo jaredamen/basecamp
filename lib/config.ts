@@ -39,13 +39,21 @@ export const config = {
   stripe: {
     get secretKey() { return requireEnv('STRIPE_SECRET_KEY'); },
     get webhookSecret() { return requireEnv('STRIPE_WEBHOOK_SECRET'); },
+    get meteredPriceId() { return requireEnv('STRIPE_METERED_PRICE_ID'); },
+    get meterEventName() { return process.env.STRIPE_METER_EVENT_NAME || 'ai_generation'; },
   },
 
-  // Credit tiers (cents)
+  // Credit tiers (cents) — legacy, kept for reference
   creditTiers: [300, 500, 1000, 2000] as const,
 
-  // Markup on OpenAI costs (1.5 = 50% markup)
-  costMarkup: 1.5,
+  // Free allowance for new users (cents) — ~10 generations
+  freeAllowanceCents: 50,
+
+  // Monthly spending cap (cents) — safety limit
+  monthlySpendCapCents: 500,
+
+  // Markup on OpenAI costs (2.0 = 100% markup)
+  costMarkup: 2.0,
 
   // OpenAI pricing (dollars per token) — update if pricing changes
   openaiPricing: {

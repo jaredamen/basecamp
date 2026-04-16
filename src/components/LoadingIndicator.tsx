@@ -25,9 +25,9 @@ export function LoadingIndicator({ stage, progress, error, insufficientCredits, 
       <div className="min-h-screen bg-gradient-to-br from-dark-900 via-dark-800 to-dark-900 flex items-center justify-center px-6">
         <div className="max-w-md mx-auto text-center space-y-6">
           <div className="text-6xl">💳</div>
-          <h1 className="text-2xl font-bold text-white">You need credits to generate content</h1>
+          <h1 className="text-2xl font-bold text-white">Add a payment method to continue</h1>
           <p className="text-dark-300">
-            Add a few dollars in credits to start creating flashcards and audio lessons. Credits start at just $3.
+            Your free generations are used up. Add a card to keep learning — you'll only be billed for what you use, about $0.10 per lesson.
           </p>
 
           <div className="flex flex-col space-y-3">
@@ -36,7 +36,7 @@ export function LoadingIndicator({ stage, progress, error, insufficientCredits, 
                 onClick={onAddCredits}
                 className="px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg font-semibold hover:from-blue-700 hover:to-purple-700 transition-all"
               >
-                Add Credits
+                Add Payment Method
               </button>
             )}
             {onRetry && (

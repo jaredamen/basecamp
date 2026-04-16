@@ -1,10 +1,11 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { requireAuth } from '../../lib/auth.js';
 import { textToSpeech } from '../../lib/openai.js';
-import { calculateTTSCostCents, deductCredits, refundCredits } from '../../lib/credits.js';
+import { calculateTTSCostCents } from '../../lib/credits.js';
+import { checkBillingStatus, reportUsage } from '../../lib/billing.js';
 import { checkRateLimit, recordLLMRequest } from '../../lib/ratelimit.js';
 
-// POST /api/proxy/tts — proxied OpenAI TTS with credit pre-deduction
+// POST /api/proxy/tts — proxied OpenAI TTS with metered billing
 // Body: { text, voice?, speed? }
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') {
@@ -34,33 +35,37 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(400).json({ error: 'Text too long (max 4096 characters)' });
   }
 
-  // Pre-calculate cost (character count is known)
-  const costCents = calculateTTSCostCents(text.length);
-
-  // Pre-deduct credits
-  const deduction = await deductCredits(user.id, costCents, `TTS: ${text.length} chars`);
-  if (!deduction) {
+  // Billing status check
+  const billing = await checkBillingStatus(user.id);
+  if (!billing.canGenerate) {
+    if (billing.reason === 'spend_cap_reached') {
+      return res.status(429).json({
+        error: 'spend_cap_reached',
+        message: 'Monthly spending limit reached',
+      });
+    }
     return res.status(402).json({
-      error: 'insufficient_credits',
-      balance: 0,
-      message: 'You need more credits to generate audio. Top up to keep learning!',
+      error: 'no_payment_method',
+      message: 'Add a payment method to continue',
     });
   }
 
+  // Pre-calculate cost (character count is known)
+  const costCents = calculateTTSCostCents(text.length);
+
   try {
     const audioBuffer = await textToSpeech({ text, voice, speed });
+
+    // Report usage after successful generation (free allowance first, then Stripe meter)
+    await reportUsage(user.id, costCents, `TTS: ${text.length} chars`);
 
     // Record the request — for TTS we use char count as a token-equivalent proxy
     await recordLLMRequest(user.id, 'tts', text.length);
 
     res.setHeader('Content-Type', 'audio/mpeg');
-    res.setHeader('X-Credits-Remaining', String(deduction.newBalance));
     return res.status(200).send(Buffer.from(audioBuffer));
   } catch (err) {
-    // Refund on failure
     console.error('Proxy TTS error:', err);
-    await refundCredits(user.id, costCents, 'TTS generation failed — refunded');
-
     return res.status(502).json({
       error: 'TTS service error',
       message: err instanceof Error ? err.message : 'Unknown error',

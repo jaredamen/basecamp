@@ -1,11 +1,12 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { requireAuth } from '../../lib/auth.js';
 import { chatCompletion } from '../../lib/openai.js';
-import { calculateChatCostCents, deductCredits, getBalance } from '../../lib/credits.js';
+import { calculateChatCostCents } from '../../lib/credits.js';
+import { checkBillingStatus, reportUsage } from '../../lib/billing.js';
 import { MAX_TOKENS } from '../../lib/governancePrompt.js';
 import { checkRateLimit, recordLLMRequest } from '../../lib/ratelimit.js';
 
-// POST /api/proxy/chat — proxied OpenAI chat completion with credit deduction
+// POST /api/proxy/chat — proxied OpenAI chat completion with metered billing
 // Body: { messages, temperature?, max_tokens?, response_format? }
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') {
@@ -25,13 +26,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     });
   }
 
-  // Quick balance check
-  const balance = await getBalance(user.id);
-  if (balance < 1) {
+  // Billing status check
+  const billing = await checkBillingStatus(user.id);
+  if (!billing.canGenerate) {
+    if (billing.reason === 'spend_cap_reached') {
+      return res.status(429).json({
+        error: 'spend_cap_reached',
+        message: 'Monthly spending limit reached',
+      });
+    }
     return res.status(402).json({
-      error: 'insufficient_credits',
-      balance,
-      message: 'You need more credits to continue. Top up to keep learning!',
+      error: 'no_payment_method',
+      message: 'Add a payment method to continue',
     });
   }
 
@@ -69,17 +75,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       model: result.model,
     });
 
-    // Deduct credits
-    const deduction = await deductCredits(user.id, costCents, `Chat: ${result.model}`, {
-      prompt_tokens: usage.prompt_tokens,
-      completion_tokens: usage.completion_tokens,
-      model: result.model,
-      cost_cents: costCents,
-    });
-
-    // If deduction fails (race condition — balance dropped between check and deduct),
-    // still return the result but warn. Don't punish the user for a race condition.
-    const remainingBalance = deduction?.newBalance ?? balance - costCents;
+    // Report usage (free allowance first, then Stripe meter)
+    await reportUsage(user.id, costCents, `Chat: ${result.model}`);
 
     // Record the request for rate limiting / session budget tracking
     await recordLLMRequest(
@@ -88,7 +85,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       (usage?.prompt_tokens ?? 0) + (usage?.completion_tokens ?? 0)
     );
 
-    res.setHeader('X-Credits-Remaining', String(remainingBalance));
     return res.status(200).json(result);
   } catch (err) {
     console.error('Proxy chat error:', err);
