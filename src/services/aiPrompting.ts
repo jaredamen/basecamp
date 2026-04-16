@@ -161,27 +161,10 @@ export class AIPromptingService {
     provider: AIProviderConfig
   ): Promise<FlashcardSet> {
     const prompt = FLASHCARD_PROMPT.replace('{content}', wrapUntrusted(content));
-    
+
     try {
       const response = await this.callAIProvider(prompt, provider);
-      const result = JSON.parse(response) as FlashcardSet;
-      
-      // Add metadata
-      result.id = this.generateId();
-      result.metadata = {
-        ...result.metadata,
-        sourceType,
-        sourceContent: sourceType === 'url' ? content : content.substring(0, 200) + '...',
-        createdAt: new Date().toISOString()
-      };
-      
-      // Ensure all cards have IDs
-      result.cards = result.cards.map(card => ({
-        ...card,
-        id: card.id || this.generateId()
-      }));
-      
-      return result;
+      return this.parseFlashcardResponse(response, content, sourceType);
     } catch (error) {
       console.error('Failed to generate flashcards:', error);
       throw new Error('Failed to generate flashcards. Please check your API configuration.');
@@ -209,17 +192,8 @@ ${flashcards.map(card => `- ${card.front}: ${card.back}`).join('\n')}
         temperature: 0.8, // Higher creativity for narrative
         maxTokens: 3000  // Longer content for audio
       });
-      
-      const result = JSON.parse(response) as AudioScript;
-      
-      // Add metadata
-      result.id = this.generateId();
-      result.sections = result.sections.map(section => ({
-        ...section,
-        id: section.id || this.generateId()
-      }));
-      
-      return result;
+
+      return this.parseAudioScriptResponse(response);
     } catch (error) {
       console.error('Failed to generate audio script:', error);
       throw new Error('Failed to generate audio script. Please check your API configuration.');
@@ -392,19 +366,39 @@ ${flashcards.map(card => `- ${card.front}: ${card.back}`).join('\n')}
   }
 
   parseFlashcardResponse(jsonString: string, content: string, sourceType: 'url' | 'text'): FlashcardSet {
-    const result = JSON.parse(jsonString) as FlashcardSet;
-    result.id = this.generateId();
-    result.metadata = {
-      ...result.metadata,
-      sourceType,
-      sourceContent: sourceType === 'url' ? content : content.substring(0, 200) + '...',
-      createdAt: new Date().toISOString()
-    };
-    result.cards = result.cards.map(card => ({
-      ...card,
-      id: card.id || this.generateId()
+    const raw = JSON.parse(jsonString);
+
+    // The AI may return cards under different key names — normalize
+    const cards: Flashcard[] = (
+      raw.cards || raw.flashcards || raw.items || raw.questions || []
+    ).map((card: Record<string, unknown>) => ({
+      id: (card.id as string) || this.generateId(),
+      front: (card.front || card.question || card.q || '') as string,
+      back: (card.back || card.answer || card.a || '') as string,
+      explanation: (card.explanation || card.detail || '') as string,
+      codeExample: (card.codeExample || card.code || '') as string,
+      difficulty: (card.difficulty || 'medium') as 'easy' | 'medium' | 'hard',
+      tags: Array.isArray(card.tags) ? card.tags as string[] : [],
     }));
-    return result;
+
+    if (cards.length === 0) {
+      throw new Error('AI returned no flashcards. Try again or use different content.');
+    }
+
+    return {
+      id: this.generateId(),
+      title: (raw.title || 'Flashcard Set') as string,
+      description: (raw.description || '') as string,
+      cards,
+      metadata: {
+        sourceType,
+        sourceContent: sourceType === 'url' ? content : content.substring(0, 200) + '...',
+        difficulty: (raw.metadata?.difficulty || raw.difficulty || 'intermediate') as 'beginner' | 'intermediate' | 'advanced',
+        estimatedTime: (raw.metadata?.estimatedTime || raw.estimatedTime || 10) as number,
+        topics: Array.isArray(raw.metadata?.topics || raw.topics) ? (raw.metadata?.topics || raw.topics) : [],
+        createdAt: new Date().toISOString(),
+      },
+    };
   }
 
   getAudioScriptPrompt(content: string, flashcards: Flashcard[]): string {
@@ -419,13 +413,43 @@ ${flashcards.map(card => `- ${card.front}: ${card.back}`).join('\n')}
   }
 
   parseAudioScriptResponse(jsonString: string): AudioScript {
-    const result = JSON.parse(jsonString) as AudioScript;
-    result.id = this.generateId();
-    result.sections = result.sections.map(section => ({
-      ...section,
-      id: section.id || this.generateId()
+    const raw = JSON.parse(jsonString);
+
+    // Normalize sections — AI may use different key names
+    const sections: AudioSection[] = (
+      raw.sections || raw.segments || raw.parts || raw.content || []
+    ).map((section: Record<string, unknown>) => ({
+      id: (section.id as string) || this.generateId(),
+      heading: (section.heading || section.title || section.header || '') as string,
+      content: (section.content || section.text || section.body || '') as string,
+      emphasis: (section.emphasis || 'normal') as 'normal' | 'strong' | 'whisper',
+      pauseAfter: (section.pauseAfter || section.pause || 1) as number,
     }));
-    return result;
+
+    // If AI returned a flat string instead of sections, wrap it
+    if (sections.length === 0 && typeof raw.content === 'string') {
+      sections.push({
+        id: this.generateId(),
+        heading: 'Lesson',
+        content: raw.content,
+      });
+    }
+
+    if (sections.length === 0) {
+      throw new Error('AI returned no audio script content. Try again or use different content.');
+    }
+
+    return {
+      id: this.generateId(),
+      title: (raw.title || 'Audio Lesson') as string,
+      content: sections.map(s => s.content).join('\n\n'),
+      sections,
+      metadata: {
+        estimatedDuration: (raw.metadata?.estimatedDuration || raw.estimatedDuration || 300) as number,
+        voiceInstructions: (raw.metadata?.voiceInstructions || raw.voiceInstructions || '') as string,
+        emphasis: Array.isArray(raw.metadata?.emphasis || raw.emphasis) ? (raw.metadata?.emphasis || raw.emphasis) : [],
+      },
+    };
   }
 
   private generateId(): string {
