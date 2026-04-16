@@ -1,18 +1,38 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { runMigrations } from '../../lib/db.js';
+import { getDb, runMigrations } from '../../lib/db.js';
 
-// POST /api/db/migrate — run once to set up the database schema.
-// In production, hit this endpoint once after connecting Vercel Postgres.
+// GET  /api/db/migrate — health check (verifies DB connectivity)
+// POST /api/db/migrate — run database migrations
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
+  // GET = health check
+  if (req.method === 'GET') {
+    try {
+      const sql = getDb();
+      await sql`SELECT 1`;
+      return res.status(200).json({
+        status: 'ok',
+        db: 'connected',
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error) {
+      return res.status(500).json({
+        status: 'error',
+        db: 'disconnected',
+        error: String(error),
+      });
+    }
   }
 
-  try {
-    await runMigrations();
-    return res.status(200).json({ success: true, message: 'Migrations complete' });
-  } catch (error) {
-    console.error('Migration failed:', error);
-    return res.status(500).json({ error: 'Migration failed', details: String(error) });
+  // POST = run migrations
+  if (req.method === 'POST') {
+    try {
+      await runMigrations();
+      return res.status(200).json({ success: true, message: 'Migrations complete' });
+    } catch (error) {
+      console.error('Migration failed:', error);
+      return res.status(500).json({ error: 'Migration failed', details: String(error) });
+    }
   }
+
+  return res.status(405).json({ error: 'Method not allowed' });
 }

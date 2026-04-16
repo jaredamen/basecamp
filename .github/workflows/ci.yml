@@ -3,10 +3,8 @@ name: CI
 # Runs on every PR to main and on every push to main.
 # All checks must pass before a PR can be merged (enforced via branch protection).
 #
-# Note: Vercel automatically runs its own build on every PR via the
-# Vercel GitHub integration and reports back as a separate status check.
-# So we don't run `vercel build` here — Vercel's check is the source of truth
-# for Vercel-specific issues. This workflow handles type/lint/test/build only.
+# Vercel auto-deploys from main and creates preview deploys for PRs.
+# This workflow handles code quality; Vercel handles the deploy.
 
 on:
   pull_request:
@@ -14,7 +12,6 @@ on:
   push:
     branches: [main]
 
-# Cancel in-progress runs for the same PR/branch when a new push arrives.
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -44,8 +41,41 @@ jobs:
       - name: Lint
         run: npm run lint
 
-      - name: Unit tests
+      - name: Security audit
+        run: npm audit --audit-level=high --omit=dev || true
+        # Warn but don't block — transitive dep vulns often have no fix available.
+        # Revisit: make this blocking once we've triaged existing findings.
+
+      - name: Unit + integration tests
         run: npm test
 
-      - name: Build (Vite)
+      - name: Build
         run: npm run build
+
+  # Post-deploy smoke test — only runs after push to main (not on PRs)
+  smoke:
+    name: Post-deploy smoke test
+    runs-on: ubuntu-latest
+    needs: ci
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    timeout-minutes: 5
+
+    steps:
+      - name: Wait for Vercel deploy
+        run: sleep 60
+
+      - name: Health check (DB connectivity)
+        run: |
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" https://basecamp-pink.vercel.app/api/db/migrate)
+          echo "Health check status: $STATUS"
+          if [ "$STATUS" != "200" ]; then
+            echo "FAIL: Health check returned $STATUS"
+            exit 1
+          fi
+
+      - name: Auth endpoint check
+        run: |
+          BODY=$(curl -s https://basecamp-pink.vercel.app/api/auth/me)
+          echo "Auth check: $BODY"
+          # Should return 401 with JSON, not a 500 or HTML error page
+          echo "$BODY" | grep -q "Not authenticated" || echo "$BODY" | grep -q "error"

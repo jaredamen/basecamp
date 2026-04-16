@@ -368,10 +368,16 @@ ${flashcards.map(card => `- ${card.front}: ${card.back}`).join('\n')}
   parseFlashcardResponse(jsonString: string, content: string, sourceType: 'url' | 'text'): FlashcardSet {
     const raw = JSON.parse(jsonString);
 
-    // The AI may return cards under different key names — normalize
-    const cards: Flashcard[] = (
-      raw.cards || raw.flashcards || raw.items || raw.questions || []
-    ).map((card: Record<string, unknown>) => ({
+    // The AI may return cards under different key names — normalize.
+    // Only use actual arrays to prevent .map() on a non-array value.
+    const rawCards =
+      (Array.isArray(raw.cards) && raw.cards) ||
+      (Array.isArray(raw.flashcards) && raw.flashcards) ||
+      (Array.isArray(raw.items) && raw.items) ||
+      (Array.isArray(raw.questions) && raw.questions) ||
+      [];
+
+    const cards: Flashcard[] = rawCards.map((card: Record<string, unknown>) => ({
       id: (card.id as string) || this.generateId(),
       front: (card.front || card.question || card.q || '') as string,
       back: (card.back || card.answer || card.a || '') as string,
@@ -415,19 +421,27 @@ ${flashcards.map(card => `- ${card.front}: ${card.back}`).join('\n')}
   parseAudioScriptResponse(jsonString: string): AudioScript {
     const raw = JSON.parse(jsonString);
 
-    // Normalize sections — AI may use different key names
-    const sections: AudioSection[] = (
-      raw.sections || raw.segments || raw.parts || raw.content || []
-    ).map((section: Record<string, unknown>) => ({
-      id: (section.id as string) || this.generateId(),
-      heading: (section.heading || section.title || section.header || '') as string,
-      content: (section.content || section.text || section.body || '') as string,
-      emphasis: (section.emphasis || 'normal') as 'normal' | 'strong' | 'whisper',
-      pauseAfter: (section.pauseAfter || section.pause || 1) as number,
-    }));
+    // Normalize sections — AI may use different key names.
+    // IMPORTANT: only use arrays — raw.content can be a string (flat script),
+    // and calling .map() on a string crashes.
+    const rawSections =
+      (Array.isArray(raw.sections) && raw.sections) ||
+      (Array.isArray(raw.segments) && raw.segments) ||
+      (Array.isArray(raw.parts) && raw.parts) ||
+      null;
+
+    const sections: AudioSection[] = rawSections
+      ? rawSections.map((section: Record<string, unknown>) => ({
+          id: (section.id as string) || this.generateId(),
+          heading: (section.heading || section.title || section.header || '') as string,
+          content: (section.content || section.text || section.body || '') as string,
+          emphasis: (section.emphasis || 'normal') as 'normal' | 'strong' | 'whisper',
+          pauseAfter: (section.pauseAfter || section.pause || 1) as number,
+        }))
+      : [];
 
     // If AI returned a flat string instead of sections, wrap it
-    if (sections.length === 0 && typeof raw.content === 'string') {
+    if (sections.length === 0 && typeof raw.content === 'string' && raw.content.length > 0) {
       sections.push({
         id: this.generateId(),
         heading: 'Lesson',
