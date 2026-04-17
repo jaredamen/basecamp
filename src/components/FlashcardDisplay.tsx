@@ -110,86 +110,80 @@ export function FlashcardDisplay({ flashcardSet, onComplete }: FlashcardDisplayP
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Main Flashcard */}
           <div className="lg:col-span-2 space-y-6">
-            <div className="relative">
-              {/* Flashcard */}
-              <div 
+            <div>
+              {/* Flashcard — conditional rendering instead of 3D CSS flip */}
+              <div
                 onClick={handleFlip}
-                className="bg-dark-800/50 border border-dark-700 rounded-xl p-8 min-h-[400px] cursor-pointer group hover:border-dark-600 transition-all perspective-1000"
+                className="bg-dark-800/50 border border-dark-700 rounded-xl p-8 min-h-[400px] cursor-pointer hover:border-dark-600 transition-all"
               >
-                <div className={`transition-transform duration-500 preserve-3d ${isFlipped ? 'rotate-y-180' : ''}`}>
-                  {/* Front Side */}
-                  <div className={`absolute inset-0 p-8 backface-hidden ${isFlipped ? 'rotate-y-180' : ''}`}>
-                    <div className="flex flex-col justify-between h-full">
-                      <div className="space-y-4">
-                        <div className="flex items-center justify-between">
-                          <span className={`px-3 py-1 text-xs font-medium rounded-full border ${getDifficultyColor(currentCard.difficulty)}`}>
-                            {currentCard.difficulty.toUpperCase()}
-                          </span>
-                          <div className="text-sm text-dark-400">
-                            Click to reveal answer
-                          </div>
-                        </div>
-                        <div className="text-xl font-medium text-white leading-relaxed">
-                          {currentCard.front}
-                        </div>
-                      </div>
-                      <div className="text-center">
-                        <div className="text-6xl text-dark-600">🤔</div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Back Side */}
-                  <div className={`absolute inset-0 p-8 backface-hidden rotate-y-180 ${isFlipped ? '' : 'rotate-y-180'}`}>
-                    <div className="space-y-4 h-full overflow-y-auto">
+                {!isFlipped ? (
+                  /* Front Side — Question */
+                  <div className="flex flex-col justify-between h-full min-h-[350px]">
+                    <div className="space-y-4">
                       <div className="flex items-center justify-between">
                         <span className={`px-3 py-1 text-xs font-medium rounded-full border ${getDifficultyColor(currentCard.difficulty)}`}>
                           {currentCard.difficulty.toUpperCase()}
                         </span>
-                        <div className="text-sm text-green-400">
-                          Answer ✓
+                        <div className="text-sm text-dark-400">
+                          Tap to reveal answer
                         </div>
                       </div>
-                      
-                      <div className="space-y-4">
-                        <div className="text-lg text-white font-medium">
-                          {currentCard.back}
-                        </div>
-                        
-                        {currentCard.explanation && (
-                          <div className="bg-dark-700/50 rounded-lg p-4">
-                            <h4 className="text-sm font-medium text-blue-300 mb-2">Explanation</h4>
-                            <p className="text-dark-300 text-sm leading-relaxed">
-                              {currentCard.explanation}
-                            </p>
-                          </div>
-                        )}
-                        
-                        {currentCard.codeExample && (
-                          <div className="bg-dark-900/50 rounded-lg p-4 border border-dark-600">
-                            <h4 className="text-sm font-medium text-green-300 mb-2">Code Example</h4>
-                            <pre className="text-xs text-gray-300 overflow-x-auto">
-                              <code>{currentCard.codeExample}</code>
-                            </pre>
-                          </div>
-                        )}
-                        
-                        {currentCard.tags.length > 0 && (
-                          <div className="flex flex-wrap gap-2">
-                            {currentCard.tags.map((tag, index) => (
-                              <span
-                                key={index}
-                                className="px-2 py-1 text-xs bg-dark-600/50 text-dark-300 rounded border border-dark-500"
-                              >
-                                {tag}
-                              </span>
-                            ))}
-                          </div>
-                        )}
+                      <div className="text-xl font-medium text-white leading-relaxed">
+                        {currentCard.front}
                       </div>
                     </div>
+                    <div className="text-center pt-8">
+                      <div className="text-5xl text-dark-600 opacity-30">?</div>
+                    </div>
                   </div>
-                </div>
+                ) : (
+                  /* Back Side — Answer */
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <span className={`px-3 py-1 text-xs font-medium rounded-full border ${getDifficultyColor(currentCard.difficulty)}`}>
+                        {currentCard.difficulty.toUpperCase()}
+                      </span>
+                      <div className="text-sm text-green-400">
+                        Answer
+                      </div>
+                    </div>
+
+                    <div className="text-lg text-white font-medium leading-relaxed">
+                      {currentCard.back}
+                    </div>
+
+                    {currentCard.explanation && (
+                      <div className="bg-dark-700/50 rounded-lg p-4">
+                        <h4 className="text-sm font-medium text-blue-300 mb-2">Explanation</h4>
+                        <p className="text-dark-300 text-sm leading-relaxed">
+                          {currentCard.explanation}
+                        </p>
+                      </div>
+                    )}
+
+                    {currentCard.codeExample && (
+                      <div className="bg-dark-900/50 rounded-lg p-4 border border-dark-600">
+                        <h4 className="text-sm font-medium text-green-300 mb-2">Code Example</h4>
+                        <pre className="text-xs text-gray-300 overflow-x-auto">
+                          <code>{currentCard.codeExample}</code>
+                        </pre>
+                      </div>
+                    )}
+
+                    {currentCard.tags.length > 0 && (
+                      <div className="flex flex-wrap gap-2">
+                        {currentCard.tags.map((tag, index) => (
+                          <span
+                            key={index}
+                            className="px-2 py-1 text-xs bg-dark-600/50 text-dark-300 rounded border border-dark-500"
+                          >
+                            {tag}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
 
               {/* Navigation */}
