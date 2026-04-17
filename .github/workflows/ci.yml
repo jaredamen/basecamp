@@ -52,6 +52,42 @@ jobs:
       - name: Build
         run: npm run build
 
+  # Golden path E2E test — runs the critical user journey with mocked API
+  e2e:
+    name: Golden path E2E
+    runs-on: ubuntu-latest
+    needs: ci
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright (chromium only)
+        run: npx playwright install chromium --with-deps
+
+      - name: Run golden path E2E test
+        run: npx playwright test e2e/08-golden-path.spec.ts --project=chromium
+
+      - name: Upload test artifacts on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: golden-path-test-results
+          path: |
+            test-results/
+            playwright-report/
+          retention-days: 7
+
   # Post-deploy smoke test — only runs after push to main (not on PRs)
   smoke:
     name: Post-deploy smoke test

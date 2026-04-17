@@ -24,7 +24,7 @@ Learn something new from a URL or text — get flashcards and an audio lesson.
 - `GET /api/billing/status` → free allowance / billing check
 
 ## E2E test location
+- **`e2e/08-golden-path.spec.ts`** — full Playwright E2E test: sign in → enter text → generate → view flashcards + audio + navigation (mocked API, runs in CI)
 - `tests/services/aiPrompting.test.ts` — parser tests (15 tests covering JSON response variations)
 - `tests/api/auth.test.ts` — auth utilities (14 tests)
 - `tests/api/callback.test.ts` — OAuth callback (10 tests)
-- TODO: full E2E with Playwright using dev-login + mocked AI response
