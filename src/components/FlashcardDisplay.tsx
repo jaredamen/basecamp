@@ -98,9 +98,9 @@ export function FlashcardDisplay({ flashcardSet, onComplete }: FlashcardDisplayP
               </div>
 
               {currentCard.explanation && (
-                <div className="bg-dark-700/50 rounded-lg p-4">
-                  <h4 className="text-sm font-medium text-blue-300 mb-2">Explanation</h4>
-                  <p className="text-dark-300 text-sm leading-relaxed">
+                <div className="bg-blue-900/20 border border-blue-800/30 rounded-lg p-4">
+                  <h4 className="text-sm font-medium text-blue-300 mb-2">Remember it like this:</h4>
+                  <p className="text-dark-200 text-sm leading-relaxed">
                     {currentCard.explanation}
                   </p>
                 </div>
