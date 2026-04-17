@@ -40,8 +40,9 @@ function App() {
   useEffect(() => {
     if (stage === 'complete' && flashcards && audioScript) {
       setAppState('content');
+      refreshBilling(); // Update usage display after generation
     }
-  }, [stage, flashcards, audioScript]);
+  }, [stage, flashcards, audioScript, refreshBilling]);
 
   const handleSetupComplete = () => {
     setAppState('input');
