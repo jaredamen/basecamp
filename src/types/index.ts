@@ -12,13 +12,33 @@ export interface Flashcard {
   answer: string;
 }
 
+export interface AudioBriefingSection {
+  id: string;
+  content: string;
+}
+
+export interface AudioQuiz {
+  id: string;
+  afterSectionIndex: number;
+  question: string;
+  choices: string[];
+  correctIndex: number;
+  explanation?: string;
+}
+
 export interface AudioBriefing {
   briefing_id: string;
   title: string;
   source: string;
   created_at: string;
+  /** Full joined script — used for fallback playback and the "Show Script" view */
   script: string;
   audio_file?: string;
+  /** When present, the player plays sections sequentially and pauses between
+   *  each one to render a quiz from `quizzes` whose afterSectionIndex matches.
+   *  Absent on legacy briefings or when the LLM didn't emit checkpoint quizzes. */
+  sections?: AudioBriefingSection[];
+  quizzes?: AudioQuiz[];
 }
 
 export interface FlashcardSession {

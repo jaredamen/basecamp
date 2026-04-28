@@ -8,10 +8,38 @@ import { LearningContentDisplay } from './components/LearningContentDisplay';
 import { LoadingIndicator } from './components/LoadingIndicator';
 import { AppHeader } from './components/AppHeader';
 import { AddPaymentModal } from './components/AddPaymentModal';
+import { AudioPlayer } from './components/AudioPlayer';
+import { DEMO_PAUSE_AND_QUIZ_BRIEFING } from './devDemoBriefing';
 
 type AppState = 'setup' | 'input' | 'generating' | 'content';
 
+// Dev-only: visiting /?demo=audio short-circuits to the AudioPlayer with a
+// hardcoded fixture briefing. Lets you verify Pause-and-Quiz UX without
+// running the API locally or spending LLM/TTS credits.
+const isDevDemoAudio = (): boolean => {
+  if (!import.meta.env.DEV) return false;
+  if (typeof window === 'undefined') return false;
+  return new URLSearchParams(window.location.search).get('demo') === 'audio';
+};
+
 function App() {
+  if (isDevDemoAudio()) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-dark-900 via-dark-800 to-dark-900 flex flex-col">
+        <AudioPlayer
+          briefing={DEMO_PAUSE_AND_QUIZ_BRIEFING}
+          onBack={() => {
+            window.history.replaceState({}, '', window.location.pathname);
+            window.location.reload();
+          }}
+        />
+      </div>
+    );
+  }
+  return <AppMain />;
+}
+
+function AppMain() {
   const [appState, setAppState] = useState<AppState>('setup');
   const { isConfigured, isManaged, clearConfig } = useBYOK();
   const {
