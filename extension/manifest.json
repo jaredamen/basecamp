@@ -1,0 +1,15 @@
+{
+  "manifest_version": 3,
+  "name": "Basecamp — actually learn from any webpage",
+  "short_name": "Basecamp",
+  "version": "0.1.0",
+  "description": "Turn any article into an analogy-led explanation, an audio briefing that quizzes you, and flashcards. Don't AI yourself into stupidity.",
+  "permissions": ["activeTab", "contextMenus", "scripting", "storage"],
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "action": {
+    "default_title": "Basecamp this page"
+  }
+}

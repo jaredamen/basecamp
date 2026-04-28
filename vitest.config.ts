@@ -7,9 +7,10 @@ export default defineConfig({
     globals: true,
     environment: 'jsdom',
     setupFiles: './src/test-setup.ts',
-    // Exclude Playwright e2e tests (they use their own runner) and
-    // llm_compliance middleware files (third-party, not our tests)
-    exclude: ['e2e/**', 'llm_compliance/**', 'node_modules/**'],
+    // Exclude Playwright e2e tests (they use their own runner), the
+    // marketing clip pipeline (also Playwright-driven), and llm_compliance
+    // middleware files (third-party, not our tests)
+    exclude: ['e2e/**', 'clips/**', 'llm_compliance/**', 'node_modules/**'],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html', 'lcov'],

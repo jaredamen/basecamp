@@ -1,24 +1,52 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 interface DocumentationInputProps {
   onGenerate: (content: { url?: string; text?: string; type: 'url' | 'text' }) => void;
   isGenerating?: boolean;
 }
 
+const validateUrl = (urlString: string): boolean => {
+  try {
+    const urlObj = new URL(urlString);
+    return urlObj.protocol === 'http:' || urlObj.protocol === 'https:';
+  } catch {
+    return false;
+  }
+};
+
 export function DocumentationInput({ onGenerate, isGenerating = false }: DocumentationInputProps) {
   const [inputType, setInputType] = useState<'url' | 'text'>('url');
   const [url, setUrl] = useState('');
   const [text, setText] = useState('');
   const [errors, setErrors] = useState<{ url?: string; text?: string }>({});
+  const handledExtensionParams = useRef(false);
 
-  const validateUrl = (urlString: string): boolean => {
-    try {
-      const urlObj = new URL(urlString);
-      return urlObj.protocol === 'http:' || urlObj.protocol === 'https:';
-    } catch {
-      return false;
+  // Auto-submit when launched from the Chrome extension. The extension opens
+  // /?source=ext&url=...&selection=... ; we honour the URL or selection,
+  // strip the params from the address bar, and kick off generation immediately.
+  useEffect(() => {
+    if (handledExtensionParams.current) return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('source') !== 'ext') return;
+    handledExtensionParams.current = true;
+
+    const extUrl = params.get('url') ?? '';
+    const extSelection = params.get('selection') ?? '';
+
+    window.history.replaceState({}, '', window.location.pathname);
+
+    if (extSelection.trim().length >= 50) {
+      setInputType('text');
+      setText(extSelection);
+      onGenerate({ text: extSelection.trim(), type: 'text' });
+      return;
     }
-  };
+    if (extUrl && validateUrl(extUrl)) {
+      setInputType('url');
+      setUrl(extUrl);
+      onGenerate({ url: extUrl.trim(), type: 'url' });
+    }
+  }, [onGenerate]);
 
   const handleGenerate = () => {
     setErrors({});

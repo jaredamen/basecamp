@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Basecamp — slop vs analogy</title>
+<style>
+  :root {
+    --dark-900: #0a0e1a;
+    --dark-800: #111827;
+    --dark-700: #1f2937;
+    --slop:     #6b7280;
+    --slop-bg:  #161a23;
+    --bc-accent:#7c8cf8;
+    --bc-text:  #e8ecff;
+    --bc-bg:    linear-gradient(135deg, #1a1f3a 0%, #0f1428 100%);
+    --good:     #34d399;
+    --tag-purple:#a78bfa;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    width: 1920px;
+    height: 1080px;
+    background: var(--dark-900);
+    color: white;
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", system-ui, sans-serif;
+    overflow: hidden;
+  }
+  .stage {
+    width: 100%;
+    height: 100%;
+    display: grid;
+    grid-template-rows: 90px 1fr 90px;
+    padding: 0 96px;
+  }
+  .title {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 32px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    color: #d1d5db;
+    opacity: 0;
+    transition: opacity 600ms ease-out;
+  }
+  .title.show { opacity: 1; }
+  .title em {
+    color: var(--bc-accent);
+    font-style: normal;
+    font-weight: 700;
+  }
+  .columns {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 48px;
+    align-items: stretch;
+    padding: 24px 0;
+  }
+  .col {
+    border-radius: 24px;
+    padding: 48px;
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+    opacity: 0;
+    transform: translateY(20px);
+    transition: opacity 700ms ease-out, transform 700ms ease-out;
+  }
+  .col.show { opacity: 1; transform: translateY(0); }
+  .col-slop {
+    background: var(--slop-bg);
+    border: 1px solid #2a2f3d;
+  }
+  .col-bc {
+    background: var(--bc-bg);
+    border: 1px solid rgba(124, 140, 248, 0.25);
+    box-shadow: 0 30px 80px rgba(99, 102, 241, 0.15);
+  }
+  .label {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 16px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: #9ca3af;
+  }
+  .label .dot {
+    width: 10px; height: 10px; border-radius: 999px;
+    background: #6b7280;
+  }
+  .col-bc .label { color: var(--bc-accent); }
+  .col-bc .label .dot { background: var(--bc-accent); box-shadow: 0 0 12px var(--bc-accent); }
+  h2 {
+    font-size: 36px;
+    font-weight: 700;
+    letter-spacing: -0.015em;
+  }
+  .col-slop h2 { color: #d1d5db; }
+  .col-bc h2 { color: white; }
+  .body {
+    font-size: 26px;
+    line-height: 1.55;
+    flex: 1;
+  }
+  .col-slop .body {
+    color: var(--slop);
+    font-weight: 400;
+  }
+  .col-bc .body {
+    color: var(--bc-text);
+    font-weight: 400;
+  }
+  .col-bc .body .hl {
+    color: white;
+    background: linear-gradient(180deg, transparent 60%, rgba(124, 140, 248, 0.35) 60%);
+    padding: 0 4px;
+    border-radius: 4px;
+    font-weight: 600;
+  }
+  .col-bc .body .accent {
+    color: var(--good);
+    font-weight: 600;
+  }
+  .typed {
+    display: inline-block;
+    overflow: hidden;
+    white-space: pre-wrap;
+    width: 0;
+    transition: width 6s linear;
+  }
+  .typed.run { width: 100%; }
+  .footer {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 28px;
+    font-weight: 600;
+    color: #6b7280;
+    opacity: 0;
+    transition: opacity 600ms ease-out;
+  }
+  .footer.show { opacity: 1; color: white; }
+  .footer .pill {
+    background: linear-gradient(90deg, #6366f1, #a78bfa);
+    color: white;
+    padding: 12px 28px;
+    border-radius: 999px;
+    margin-left: 16px;
+    box-shadow: 0 8px 30px rgba(99, 102, 241, 0.4);
+  }
+</style>
+</head>
+<body>
+  <div class="stage">
+    <div class="title" id="title">
+      Same article. <em>&nbsp;Different result.</em>
+    </div>
+    <div class="columns">
+      <div class="col col-slop" id="colSlop">
+        <div class="label"><span class="dot"></span>AI summary</div>
+        <h2>Photosynthesis</h2>
+        <div class="body">
+          Photosynthesis is a biochemical process in which plants, algae, and certain bacteria convert light energy, usually from the sun, into chemical energy that is stored in the form of glucose.
+        </div>
+      </div>
+      <div class="col col-bc" id="colBc">
+        <div class="label"><span class="dot"></span>Basecamp</div>
+        <h2>Photosynthesis</h2>
+        <div class="body">
+          <span class="typed" id="typed">Plants are <span class="hl">solar-powered factories</span>. Sunlight is the <span class="hl">electricity bill</span> — except free. CO₂ walks in the front door, glucose rolls off the assembly line, and oxygen is the <span class="hl">exhaust</span> they vent into the parking lot.<br/><br/>Lucky for us, <span class="accent">the parking lot is the entire planet.</span>
+          </span>
+        </div>
+      </div>
+    </div>
+    <div class="footer" id="footer">
+      Actually learn.<span class="pill">Basecamp</span>
+    </div>
+  </div>
+<script>
+  // Animation triggers, driven by query params or a global so the
+  // Playwright spec can step through deterministically.
+  window.__clip = {
+    showTitle:  () => document.getElementById('title').classList.add('show'),
+    showSlop:   () => document.getElementById('colSlop').classList.add('show'),
+    showBc:     () => document.getElementById('colBc').classList.add('show'),
+    runType:    () => document.getElementById('typed').classList.add('run'),
+    showFooter: () => document.getElementById('footer').classList.add('show'),
+  };
+</script>
+</body>
+</html>

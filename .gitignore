@@ -36,4 +36,8 @@ CLAUDE.md
 PLAN.md
 MANUAL_TODO.md
 SETUP_GUIDE.md
+EXTENSION_AND_CLIPS_PLAN.md
 llm_compliance/
+
+# Marketing clip pipeline output (regenerated, large, not source)
+clips/output/
