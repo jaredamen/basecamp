@@ -2,6 +2,10 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import type { AudioBriefing, AudioQuiz } from '../types';
 import { useAudioPlayer } from '../hooks/useAudioPlayer';
 import { useTTS } from '../hooks/useTTS';
+import { proxyTTS, InsufficientCreditsError } from '../services/managedProxy';
+
+/** The single product voice. OpenAI's "nova" — natural, warm, conversational. */
+const PRODUCT_VOICE = 'nova';
 
 interface AudioPlayerProps {
   briefing: AudioBriefing;
@@ -26,6 +30,13 @@ const PauseIcon: React.FC<{ className?: string }> = ({ className }) => (
   </svg>
 );
 
+const SpinnerIcon: React.FC<{ className?: string }> = ({ className }) => (
+  <svg className={className} fill="none" viewBox="0 0 24 24">
+    <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="3" strokeOpacity="0.25" />
+    <path d="M21 12a9 9 0 0 0-9-9" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+  </svg>
+);
+
 const formatTime = (time: number): string => {
   const minutes = Math.floor(time / 60);
   const seconds = Math.floor(time % 60);
@@ -40,12 +51,13 @@ const formatDate = (dateString: string) => {
   });
 };
 
+type Backend = 'openai' | 'browser';
+
 export const AudioPlayer: React.FC<AudioPlayerProps> = ({ briefing, onBack }) => {
   const { playerState, loadBriefing, play, pause } = useAudioPlayer();
   const { ttsState, speak, stop: stopTTS } = useTTS();
   const [showScript, setShowScript] = useState(false);
 
-  // Pause-and-Quiz state — only used when briefing has sections + quizzes
   const sections = briefing.sections;
   const quizzes = briefing.quizzes;
   const hasInteractive = !!(sections && sections.length > 0 && quizzes);
@@ -54,26 +66,100 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({ briefing, onBack }) =>
   const [isSectionPlaying, setIsSectionPlaying] = useState(false);
   const [pendingQuiz, setPendingQuiz] = useState<AudioQuiz | null>(null);
   const [quizSelection, setQuizSelection] = useState<number | null>(null);
+  const [isFetchingAudio, setIsFetchingAudio] = useState(false);
+  const [backend, setBackend] = useState<Backend>('openai');
+  const [creditsError, setCreditsError] = useState<string | null>(null);
+
+  // OpenAI audio playback. Cache one blob URL per section so re-listening
+  // doesn't re-bill, and prefetch the next section while the current one plays.
+  const audioElRef = useRef<HTMLAudioElement | null>(null);
+  const audioUrlsRef = useRef<Map<number, string>>(new Map());
+  const inFlightRef = useRef<Map<number, Promise<string | null>>>(new Map());
+
+  // Browser-speech fallback path
   const sectionUtteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
-  // Voice settings can change between renders; keep a ref so the speak callback
-  // stays stable and uses the latest settings without re-creating itself.
   const voiceSettingsRef = useRef(ttsState.voiceSettings);
   useEffect(() => {
     voiceSettingsRef.current = ttsState.voiceSettings;
   }, [ttsState.voiceSettings]);
 
-  React.useEffect(() => {
+  // Lazy-init the HTMLAudioElement once
+  useEffect(() => {
+    if (!audioElRef.current) {
+      audioElRef.current = new Audio();
+    }
+    return () => {
+      audioElRef.current?.pause();
+      audioElRef.current = null;
+    };
+  }, []);
+
+  // When the briefing changes, reset state and free any cached blob URLs.
+  // Depends only on briefingId — useAudioPlayer.loadBriefing isn't memoized,
+  // so depending on it here would re-run every render and the cleanup would
+  // cancel speech mid-playback.
+  const briefingId = briefing.briefing_id;
+  useEffect(() => {
     loadBriefing(briefing);
     setSectionIndex(0);
     setIsSectionPlaying(false);
     setPendingQuiz(null);
     setQuizSelection(null);
+    setBackend('openai');
+    setCreditsError(null);
+    inFlightRef.current.clear();
     return () => {
       window.speechSynthesis.cancel();
+      audioElRef.current?.pause();
+      for (const url of audioUrlsRef.current.values()) {
+        URL.revokeObjectURL(url);
+      }
+      audioUrlsRef.current.clear();
     };
-  }, [briefing, loadBriefing]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [briefingId]);
 
-  const speakSection = useCallback((i: number) => {
+  /** Fetch and cache the OpenAI MP3 for a single section. Returns a blob URL,
+   *  or null if the call failed (network, 401 demo path, etc.) so the caller
+   *  can fall back to browser speech. */
+  const fetchSectionAudio = useCallback(async (i: number): Promise<string | null> => {
+    if (!sections) return null;
+    const cached = audioUrlsRef.current.get(i);
+    if (cached) return cached;
+    const inFlight = inFlightRef.current.get(i);
+    if (inFlight) return inFlight;
+
+    const section = sections[i];
+    if (!section) return null;
+    // The TTS endpoint caps at 4096 chars. Sections should fit comfortably,
+    // but slice defensively rather than 400 the whole call.
+    const text = section.content.slice(0, 4096);
+
+    const promise = (async () => {
+      try {
+        const { audioBlob } = await proxyTTS({ text, voice: PRODUCT_VOICE });
+        const url = URL.createObjectURL(audioBlob);
+        audioUrlsRef.current.set(i, url);
+        return url;
+      } catch (err) {
+        if (err instanceof InsufficientCreditsError) {
+          setCreditsError('Out of credits. Top up to keep listening.');
+        } else {
+          // Auth missing (demo path), network error, etc. — caller falls back.
+          console.warn('OpenAI TTS unavailable, falling back to browser voice', err);
+        }
+        return null;
+      } finally {
+        inFlightRef.current.delete(i);
+      }
+    })();
+    inFlightRef.current.set(i, promise);
+    return promise;
+  }, [sections]);
+
+  /** Browser-speech fallback. Used when OpenAI TTS isn't available
+   *  (demo path, no auth, no credits, network failure). */
+  const speakViaBrowser = useCallback((i: number) => {
     if (!sections || i >= sections.length) {
       setIsSectionPlaying(false);
       return;
@@ -82,7 +168,6 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({ briefing, onBack }) =>
     window.speechSynthesis.cancel();
     const section = sections[i];
     const utterance = new SpeechSynthesisUtterance(section.content);
-
     const settings = voiceSettingsRef.current;
     utterance.rate = settings.rate;
     utterance.pitch = settings.pitch;
@@ -100,30 +185,107 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({ briefing, onBack }) =>
       const next = i + 1;
       if (sections && next < sections.length) {
         setSectionIndex(next);
-        speakSection(next);
+        speakViaBrowser(next);
       }
     };
     utterance.onerror = () => setIsSectionPlaying(false);
 
     sectionUtteranceRef.current = utterance;
     setSectionIndex(i);
+    if (window.speechSynthesis.paused) window.speechSynthesis.resume();
     window.speechSynthesis.speak(utterance);
   }, [sections, quizzes]);
 
+  /** Play section i: prefer OpenAI audio, fall back to browser speech. */
+  const playSection = useCallback(async (i: number) => {
+    if (!sections || i >= sections.length) {
+      setIsSectionPlaying(false);
+      return;
+    }
+
+    setSectionIndex(i);
+    setIsFetchingAudio(true);
+    const url = await fetchSectionAudio(i);
+    setIsFetchingAudio(false);
+
+    if (!url) {
+      setBackend('browser');
+      speakViaBrowser(i);
+      return;
+    }
+    setBackend('openai');
+
+    const el = audioElRef.current;
+    if (!el) {
+      speakViaBrowser(i);
+      return;
+    }
+
+    el.src = url;
+    el.onplay = () => setIsSectionPlaying(true);
+    el.onpause = () => setIsSectionPlaying(false);
+    el.onended = () => {
+      setIsSectionPlaying(false);
+      const quiz = quizzes?.find(q => q.afterSectionIndex === i);
+      if (quiz) {
+        setPendingQuiz(quiz);
+        setQuizSelection(null);
+        return;
+      }
+      const next = i + 1;
+      if (sections && next < sections.length) {
+        playSection(next);
+      }
+    };
+    el.onerror = () => {
+      setIsSectionPlaying(false);
+      // Audio element failed to play this blob — fall back to browser speech.
+      setBackend('browser');
+      speakViaBrowser(i);
+    };
+
+    try {
+      await el.play();
+    } catch {
+      setBackend('browser');
+      speakViaBrowser(i);
+      return;
+    }
+
+    // Prefetch the next section while the current one plays so the handoff
+    // is seamless (no audible gap waiting on the network).
+    if (sections && i + 1 < sections.length) {
+      void fetchSectionAudio(i + 1);
+    }
+  }, [sections, quizzes, fetchSectionAudio, speakViaBrowser]);
+
   const handlePlayPause = () => {
     if (hasInteractive) {
-      if (pendingQuiz) return; // can't play through a quiz overlay
+      if (pendingQuiz) return;
+
       if (isSectionPlaying) {
-        window.speechSynthesis.pause();
+        if (backend === 'openai') {
+          audioElRef.current?.pause();
+        } else {
+          window.speechSynthesis.pause();
+        }
         setIsSectionPlaying(false);
         return;
       }
-      if (window.speechSynthesis.paused) {
+
+      // Resume mid-section
+      if (backend === 'openai' && audioElRef.current?.paused && audioElRef.current.src) {
+        void audioElRef.current.play();
+        return;
+      }
+      if (backend === 'browser' && window.speechSynthesis.paused) {
         window.speechSynthesis.resume();
         setIsSectionPlaying(true);
         return;
       }
-      speakSection(sectionIndex);
+
+      // Fresh start (or after an answered quiz)
+      void playSection(sectionIndex);
       return;
     }
 
@@ -145,8 +307,6 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({ briefing, onBack }) =>
     setQuizSelection(choiceIndex);
 
     const isCorrect = choiceIndex === pendingQuiz.correctIndex;
-    // Wrong answers linger longer so the listener has time to read the
-    // explanation. Correct answers move on briskly to keep momentum.
     const advanceMs = isCorrect ? 1500 : 3000;
 
     window.setTimeout(() => {
@@ -155,7 +315,7 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({ briefing, onBack }) =>
       setQuizSelection(null);
       setSectionIndex(nextIdx);
       if (sections && nextIdx < sections.length) {
-        speakSection(nextIdx);
+        void playSection(nextIdx);
       }
     }, advanceMs);
   };
@@ -163,6 +323,14 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({ briefing, onBack }) =>
   const isCurrentlyPlaying = hasInteractive
     ? isSectionPlaying
     : (playerState.isPlaying || ttsState.isReading);
+
+  const statusLabel = pendingQuiz
+    ? 'Quiz time'
+    : isFetchingAudio
+      ? 'Loading voice…'
+      : isSectionPlaying
+        ? backend === 'browser' ? 'Playing (browser voice)' : 'Playing'
+        : 'Ready';
 
   return (
     <div className="flex-1 flex flex-col">
@@ -211,6 +379,12 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({ briefing, onBack }) =>
         </div>
       </div>
 
+      {creditsError && (
+        <div className="bg-orange-600/20 border-b border-orange-600/30 text-orange-300 text-sm px-4 py-2 text-center">
+          {creditsError}
+        </div>
+      )}
+
       {/* Main Content */}
       <div className="flex-1 overflow-auto">
         {showScript ? (
@@ -223,7 +397,6 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({ briefing, onBack }) =>
           </div>
         ) : (
           <div className="flex-1 flex flex-col items-center justify-center p-8 pb-32">
-            {/* Progress bar — shown for audio files (timestamps) or interactive sections */}
             {briefing.audio_file && playerState.duration > 0 && (
               <div className="w-full max-w-sm mb-6">
                 <div className="bg-dark-700 rounded-full h-2 mb-2">
@@ -247,7 +420,7 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({ briefing, onBack }) =>
                   />
                 </div>
                 <div className="flex justify-between text-xs text-dark-400 mt-2">
-                  <span>{isSectionPlaying ? 'Playing' : pendingQuiz ? 'Quiz time' : 'Ready'}</span>
+                  <span>{statusLabel}</span>
                   <span>{quizzes?.length ?? 0} checkpoint{(quizzes?.length ?? 0) === 1 ? '' : 's'}</span>
                 </div>
               </div>
@@ -261,11 +434,13 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({ briefing, onBack }) =>
         <div className="audio-player-controls">
           <button
             onClick={handlePlayPause}
-            disabled={!!pendingQuiz}
+            disabled={!!pendingQuiz || isFetchingAudio}
             className="p-4 bg-blue-600 hover:bg-blue-700 disabled:bg-dark-700 disabled:cursor-not-allowed rounded-full text-white transition-colors"
-            aria-label={isCurrentlyPlaying ? 'Pause' : 'Play'}
+            aria-label={isCurrentlyPlaying ? 'Pause' : isFetchingAudio ? 'Loading' : 'Play'}
           >
-            {isCurrentlyPlaying ? (
+            {isFetchingAudio ? (
+              <SpinnerIcon className="w-8 h-8 animate-spin" />
+            ) : isCurrentlyPlaying ? (
               <PauseIcon className="w-8 h-8" />
             ) : (
               <PlayIcon className="w-8 h-8 ml-1" />
