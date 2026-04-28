@@ -36,7 +36,9 @@ export function LearningContentDisplay({
           source: '',
           created_at: new Date().toISOString(),
           script: audioScript.content,
-          audio_file: undefined
+          audio_file: undefined,
+          sections: audioScript.sections.map(s => ({ id: s.id, content: s.content })),
+          quizzes: audioScript.quizzes,
         }}
         onBack={() => setViewMode('overview')}
       />
