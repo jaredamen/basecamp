@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import type { FlashcardDeck } from '../types';
 import { useFlashcardSession } from '../hooks/useFlashcards';
-import { useTTS } from '../hooks/useTTS';
+import { useNovaTTS } from '../hooks/useNovaTTS';
 
 interface FlashcardViewerProps {
   deck: FlashcardDeck;
@@ -60,10 +60,17 @@ export const FlashcardViewer: React.FC<FlashcardViewerProps> = ({ deck, onBack }
     resetSession
   } = useFlashcardSession(deck);
 
-  const { ttsState, speakFlashcard, stop: stopTTS } = useTTS();
+  const { speak, stop: stopTTS, isPlaying, isFetching, errorMessage } = useNovaTTS();
   const cardRef = useRef<HTMLDivElement>(null);
   const [touchStart, setTouchStart] = useState<number>(0);
   const [touchEnd, setTouchEnd] = useState<number>(0);
+
+  const speakQuestion = () => speak(currentCard?.question ?? '');
+  const speakAnswer = () => speak(currentCard?.answer ?? '');
+  const speakBoth = () => {
+    if (!currentCard) return;
+    speak(`Question: ${currentCard.question}. Answer: ${currentCard.answer}`);
+  };
 
   if (!currentCard || !session) {
     return (
@@ -187,13 +194,13 @@ export const FlashcardViewer: React.FC<FlashcardViewerProps> = ({ deck, onBack }
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
-                    speakFlashcard(currentCard.question, currentCard.answer, false);
+                    speakQuestion();
                   }}
-                  disabled={ttsState.isReading}
+                  disabled={isPlaying || isFetching}
                   className="text-blue-400 hover:text-blue-300 disabled:text-dark-500 transition-colors mb-2 flex items-center justify-center space-x-1 mx-auto"
                 >
                   <VolumeIcon className="w-4 h-4" />
-                  <span className="text-xs">{ttsState.isReading ? 'Speaking...' : 'Read Question'}</span>
+                  <span className="text-xs">{isFetching ? 'Loading…' : isPlaying ? 'Reading…' : 'Read Question'}</span>
                 </button>
                 <p className="text-xs text-dark-500">Tap card to reveal answer</p>
               </div>
@@ -214,33 +221,24 @@ export const FlashcardViewer: React.FC<FlashcardViewerProps> = ({ deck, onBack }
               <div className="text-center mt-6">
                 <div className="flex justify-center space-x-4 mb-2">
                   <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      speakFlashcard(currentCard.question, currentCard.answer, false);
-                    }}
-                    disabled={ttsState.isReading}
+                    onClick={(e) => { e.stopPropagation(); speakQuestion(); }}
+                    disabled={isPlaying || isFetching}
                     className="text-blue-400 hover:text-blue-300 disabled:text-dark-500 transition-colors flex items-center space-x-1"
                   >
                     <VolumeIcon className="w-4 h-4" />
                     <span className="text-xs">Q</span>
                   </button>
                   <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      speakFlashcard(currentCard.answer, currentCard.answer, false);
-                    }}
-                    disabled={ttsState.isReading}
+                    onClick={(e) => { e.stopPropagation(); speakAnswer(); }}
+                    disabled={isPlaying || isFetching}
                     className="text-green-400 hover:text-green-300 disabled:text-dark-500 transition-colors flex items-center space-x-1"
                   >
                     <VolumeIcon className="w-4 h-4" />
                     <span className="text-xs">A</span>
                   </button>
                   <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      speakFlashcard(currentCard.question, currentCard.answer, true);
-                    }}
-                    disabled={ttsState.isReading}
+                    onClick={(e) => { e.stopPropagation(); speakBoth(); }}
+                    disabled={isPlaying || isFetching}
                     className="text-purple-400 hover:text-purple-300 disabled:text-dark-500 transition-colors flex items-center space-x-1"
                   >
                     <VolumeIcon className="w-4 h-4" />
@@ -272,7 +270,7 @@ export const FlashcardViewer: React.FC<FlashcardViewerProps> = ({ deck, onBack }
           </button>
 
           <div className="flex items-center space-x-2">
-            {ttsState.isReading && (
+            {(isPlaying || isFetching) && (
               <button
                 onClick={stopTTS}
                 className="px-3 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors text-sm flex items-center space-x-1"
@@ -334,11 +332,18 @@ export const FlashcardViewer: React.FC<FlashcardViewerProps> = ({ deck, onBack }
       </div>
 
       {/* TTS Status Indicator */}
-      {ttsState.isReading && (
+      {(isPlaying || isFetching) && (
         <div className="fixed top-4 left-4 right-4 z-40">
           <div className="bg-blue-600/90 text-white px-4 py-2 rounded-lg shadow-lg flex items-center justify-center space-x-2 backdrop-blur">
             <VolumeIcon className="w-4 h-4" />
-            <span className="text-sm font-medium">Reading…</span>
+            <span className="text-sm font-medium">{isFetching ? 'Loading voice…' : 'Reading…'}</span>
+          </div>
+        </div>
+      )}
+      {errorMessage && (
+        <div className="fixed top-4 left-4 right-4 z-40">
+          <div className="bg-orange-600/90 text-white px-4 py-2 rounded-lg shadow-lg text-sm font-medium text-center backdrop-blur">
+            {errorMessage}
           </div>
         </div>
       )}
