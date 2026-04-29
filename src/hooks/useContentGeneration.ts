@@ -11,6 +11,10 @@ interface GenerationState {
   insufficientCredits?: boolean;
   flashcards?: FlashcardSet;
   audioScript?: AudioScript;
+  /** True when the current state was hydrated from the library rather than
+   *  freshly generated. Lets App.tsx skip the auto-save side-effect for
+   *  restored briefings (which would otherwise re-stamp `savedAt`). */
+  wasLoadedFromLibrary?: boolean;
 }
 
 interface GenerationInput {
@@ -146,10 +150,24 @@ export function useContentGeneration() {
     });
   }, []);
 
+  /** Hydrate state from a saved library briefing — skips generation, lands
+   *  the user directly in the 'content' view. */
+  const loadFromLibrary = useCallback((flashcards: FlashcardSet, audioScript: AudioScript) => {
+    setState({
+      isGenerating: false,
+      stage: 'complete',
+      progress: 100,
+      flashcards,
+      audioScript,
+      wasLoadedFromLibrary: true,
+    });
+  }, []);
+
   return {
     ...state,
     generateContent,
     reset,
+    loadFromLibrary,
     isConfigured: isManaged || !!(config?.aiProvider && config?.voiceProvider)
   };
 }

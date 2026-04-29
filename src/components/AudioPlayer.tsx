@@ -2,10 +2,8 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import type { AudioBriefing, AudioQuiz } from '../types';
 import { useAudioPlayer } from '../hooks/useAudioPlayer';
 import { useTTS } from '../hooks/useTTS';
-import { proxyTTS, InsufficientCreditsError } from '../services/managedProxy';
-
-/** The single product voice. OpenAI's "nova" — natural, warm, conversational. */
-const PRODUCT_VOICE = 'nova';
+import { useBYOK } from '../hooks/useBYOK';
+import { fetchVoiceAudio, InsufficientCreditsError } from '../services/voiceTTS';
 
 interface AudioPlayerProps {
   briefing: AudioBriefing;
@@ -84,6 +82,12 @@ function classifyAudioError(err: unknown): string {
 export const AudioPlayer: React.FC<AudioPlayerProps> = ({ briefing, onBack }) => {
   const { playerState, loadBriefing, play, pause } = useAudioPlayer();
   const { ttsState, speak, stop: stopTTS } = useTTS();
+  const { config, isManaged } = useBYOK();
+  // BYOK with an OpenAI key → call OpenAI directly. Managed → /api/proxy/tts.
+  const byokOpenAIKey =
+    !isManaged && config?.aiProvider?.id === 'openai'
+      ? config.aiProvider.apiKey
+      : undefined;
   const [showScript, setShowScript] = useState(false);
 
   const sections = briefing.sections;
@@ -167,7 +171,7 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({ briefing, onBack }) =>
 
     const promise = (async () => {
       try {
-        const { audioBlob } = await proxyTTS({ text, voice: PRODUCT_VOICE });
+        const audioBlob = await fetchVoiceAudio(text, byokOpenAIKey);
         const url = URL.createObjectURL(audioBlob);
         audioUrlsRef.current.set(i, url);
         return url;
@@ -183,7 +187,7 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({ briefing, onBack }) =>
     })();
     inFlightRef.current.set(i, promise);
     return promise;
-  }, [sections]);
+  }, [sections, byokOpenAIKey]);
 
   /** Browser-speech fallback. Used when OpenAI TTS isn't available
    *  (demo path, no auth, no credits, network failure). */

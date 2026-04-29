@@ -87,52 +87,14 @@ export function SetupPathSelector({ onPathSelected, onSkip }: SetupPathSelectorP
               <div className="text-3xl">🔑</div>
               <div className="space-y-2">
                 <h3 className="text-xl font-semibold text-white">
-                  I'll use my own API keys
+                  I'll use my own OpenAI key
                 </h3>
                 <p className="text-dark-300">
-                  Bring your own OpenAI, Anthropic, or Google AI keys. Pay providers directly with no markup.
+                  Bring your own OpenAI key. Pay OpenAI directly, no markup. Same product.
                 </p>
-                <div className="flex flex-wrap gap-2 mt-3">
-                  <span className="text-xs bg-blue-600/20 text-blue-300 px-2 py-1 rounded">
-                    Guided Setup
-                  </span>
-                  <span className="text-xs bg-yellow-600/20 text-yellow-300 px-2 py-1 rounded">
-                    No Markup
-                  </span>
-                  <span className="text-xs bg-green-600/20 text-green-300 px-2 py-1 rounded">
-                    Full Control
-                  </span>
-                </div>
               </div>
             </div>
           </button>
-        </div>
-
-        {/* Key Features Preview */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 max-w-2xl mx-auto">
-          <div className="bg-dark-800/30 rounded-lg p-4 border border-dark-700">
-            <div className="text-2xl mb-2">📚</div>
-            <h4 className="font-semibold text-dark-100">Smart Flashcards</h4>
-            <p className="text-xs text-dark-400 mt-1">
-              AI generates study cards from any technical documentation.
-            </p>
-          </div>
-
-          <div className="bg-dark-800/30 rounded-lg p-4 border border-dark-700">
-            <div className="text-2xl mb-2">🎙️</div>
-            <h4 className="font-semibold text-dark-100">Audio Lessons</h4>
-            <p className="text-xs text-dark-400 mt-1">
-              Listen to AI-narrated summaries on the go.
-            </p>
-          </div>
-
-          <div className="bg-dark-800/30 rounded-lg p-4 border border-dark-700">
-            <div className="text-2xl mb-2">🔒</div>
-            <h4 className="font-semibold text-dark-100">Your Data, Your Keys</h4>
-            <p className="text-xs text-dark-400 mt-1">
-              Everything stays local. No data leaves your browser.
-            </p>
-          </div>
         </div>
 
         {/* Action Buttons */}
@@ -157,16 +119,6 @@ export function SetupPathSelector({ onPathSelected, onSkip }: SetupPathSelectorP
           >
             Continue
           </button>
-        </div>
-
-        {/* Cost Info */}
-        <div className="text-center space-y-2">
-          <p className="text-sm text-dark-400">
-            💰 Credits start at just $3 — enough for 40-60 learning sessions
-          </p>
-          <p className="text-xs text-dark-500">
-            Or bring your own API keys and pay providers directly
-          </p>
         </div>
       </div>
     </div>

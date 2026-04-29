@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useBYOK } from './hooks/useBYOK';
 import { useContentGeneration } from './hooks/useContentGeneration';
 import { useManaged } from './hooks/useManaged';
@@ -9,9 +9,11 @@ import { LoadingIndicator } from './components/LoadingIndicator';
 import { AppHeader } from './components/AppHeader';
 import { AddPaymentModal } from './components/AddPaymentModal';
 import { AudioPlayer } from './components/AudioPlayer';
+import { LibraryView } from './components/LibraryView';
 import { DEMO_PAUSE_AND_QUIZ_BRIEFING } from './devDemoBriefing';
+import { briefingLibrary, type SavedBriefing } from './services/briefingLibrary';
 
-type AppState = 'setup' | 'input' | 'generating' | 'content';
+type AppState = 'setup' | 'input' | 'generating' | 'content' | 'library';
 
 // Dev-only: visiting /?demo=audio short-circuits to the AudioPlayer with a
 // hardcoded fixture briefing. Lets you verify Pause-and-Quiz UX without
@@ -49,8 +51,10 @@ function AppMain() {
     insufficientCredits,
     flashcards,
     audioScript,
+    wasLoadedFromLibrary,
     generateContent,
-    reset: resetGeneration
+    reset: resetGeneration,
+    loadFromLibrary,
   } = useContentGeneration();
   const { session, billing, isAuthenticated, loading: managedLoading, refreshBilling, signOut } = useManaged();
   const [showPaymentModal, setShowPaymentModal] = useState(false);
@@ -64,13 +68,29 @@ function AppMain() {
     }
   }, [refreshBilling]);
 
-  // Auto-transition to content when generation completes successfully
+  // Auto-transition to content when generation completes successfully.
+  // Also auto-saves the briefing to the library so it persists across visits.
+  // We track the last-saved id with a ref so that re-renders (e.g. from
+  // tab switches inside content) don't re-save and shuffle library order.
+  const lastSavedKeyRef = useRef<string | null>(null);
   useEffect(() => {
     if (stage === 'complete' && flashcards && audioScript) {
       setAppState('content');
-      refreshBilling(); // Update usage display after generation
+      refreshBilling();
+      if (!wasLoadedFromLibrary) {
+        const key = `${flashcards.id}::${audioScript.id}`;
+        if (lastSavedKeyRef.current !== key) {
+          briefingLibrary.save({
+            title: flashcards.title,
+            source: flashcards.metadata.sourceType === 'url' ? flashcards.metadata.sourceContent : '',
+            flashcards,
+            audioScript,
+          });
+          lastSavedKeyRef.current = key;
+        }
+      }
     }
-  }, [stage, flashcards, audioScript, refreshBilling]);
+  }, [stage, flashcards, audioScript, refreshBilling, wasLoadedFromLibrary]);
 
   const handleSetupComplete = () => {
     setAppState('input');
@@ -89,6 +109,15 @@ function AppMain() {
     if (flashcards && audioScript) {
       setAppState('content');
     }
+  };
+
+  const handleNavigateLibrary = () => {
+    setAppState('library');
+  };
+
+  const handleOpenFromLibrary = (saved: SavedBriefing) => {
+    loadFromLibrary(saved.flashcards, saved.audioScript);
+    setAppState('content');
   };
 
   const handleBackToInput = () => {
@@ -135,9 +164,16 @@ function AppMain() {
           hasPaymentMethod={billing?.hasPaymentMethod ?? false}
           freeRemainingCents={billing?.freeRemainingCents ?? 50}
           hasContent={hasContent}
-          currentView={currentState === 'content' ? 'content' : currentState === 'generating' ? 'generating' : 'input'}
+          libraryCount={briefingLibrary.count()}
+          currentView={
+            currentState === 'content' ? 'content' :
+            currentState === 'library' ? 'library' :
+            currentState === 'generating' ? 'generating' :
+            'input'
+          }
           onNavigateHome={handleNavigateHome}
           onNavigateContent={handleNavigateContent}
+          onNavigateLibrary={handleNavigateLibrary}
           onAddPaymentMethod={handleAddPaymentMethod}
           onSignOut={handleSignOut}
         />
@@ -170,6 +206,13 @@ function AppMain() {
           <LearningContentDisplay
             flashcards={flashcards}
             audioScript={audioScript}
+            onBack={handleNavigateHome}
+          />
+        )}
+
+        {currentState === 'library' && (
+          <LibraryView
+            onOpen={handleOpenFromLibrary}
             onBack={handleNavigateHome}
           />
         )}
