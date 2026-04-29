@@ -146,7 +146,12 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({ briefing, cards, onBac
     for (const c of cards) m.set(c.id, c);
     return m;
   }, [cards]);
-  const hasInteractive = !!(sections && sections.length > 0 && interruptionPoints.length > 0);
+  // Section-by-section nova playback works regardless of whether the LLM
+  // returned valid interruption points. Don't gate the good voice on that —
+  // if the model hallucinated card IDs and the parser dropped them all, we
+  // still want nova playing the sections, just without flashcard interrupts.
+  // (The onend handlers already no-op gracefully when no card is matched.)
+  const hasSections = !!(sections && sections.length > 0);
 
   const [sectionIndex, setSectionIndex] = useState(0);
   const [isSectionPlaying, setIsSectionPlaying] = useState(false);
@@ -348,7 +353,7 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({ briefing, cards, onBac
   }, [sections, interruptionPoints, cardsById, fetchSectionAudio, speakViaBrowser]);
 
   const handlePlayPause = () => {
-    if (hasInteractive) {
+    if (hasSections) {
       if (pendingCard) return;
 
       if (isSectionPlaying) {
@@ -413,7 +418,7 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({ briefing, cards, onBac
     }, advanceMs);
   };
 
-  const isCurrentlyPlaying = hasInteractive
+  const isCurrentlyPlaying = hasSections
     ? isSectionPlaying
     : (playerState.isPlaying || ttsState.isReading);
 
@@ -463,7 +468,7 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({ briefing, cards, onBac
               return null;
             }
           })()}
-          {hasInteractive && sections && (
+          {hasSections && sections && (
             <>
               <span>&bull;</span>
               <span>Section {Math.min(sectionIndex + 1, sections.length)} of {sections.length}</span>
@@ -511,7 +516,7 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({ briefing, cards, onBac
                 </div>
               </div>
             )}
-            {hasInteractive && sections && !briefing.audio_file && (
+            {hasSections && sections && !briefing.audio_file && (
               <div className="w-full max-w-md mb-6">
                 <div className="bg-dark-700 rounded-full h-2">
                   <div
