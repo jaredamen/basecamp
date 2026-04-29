@@ -102,7 +102,7 @@ export function useContentGeneration() {
       if (isManaged) {
         const audioPrompt = aiService.getAudioScriptPrompt(content, flashcards.cards);
         const audioJson = await callManagedAI(audioPrompt);
-        audioScript = aiService.parseAudioScriptResponse(audioJson);
+        audioScript = aiService.parseAudioScriptResponse(audioJson, flashcards.cards);
       } else {
         audioScript = await aiService.generateAudioScript(
           content,

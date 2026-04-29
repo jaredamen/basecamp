@@ -17,13 +17,16 @@ export interface AudioBriefingSection {
   content: string;
 }
 
-export interface AudioQuiz {
-  id: string;
+/**
+ * A point in the audio narrative where playback pauses and the player
+ * surfaces a flashcard from the deck for active recall. The card is
+ * referenced by id from the AudioBriefing's parent FlashcardSet — there
+ * is no separate "audio quiz" type. One concept = one flashcard, three
+ * surfaces (cards / mid-listen interrupt / second-listen review).
+ */
+export interface AudioInterruptionPoint {
   afterSectionIndex: number;
-  question: string;
-  choices: string[];
-  correctIndex: number;
-  explanation?: string;
+  cardId: string;
 }
 
 export interface AudioBriefing {
@@ -35,10 +38,10 @@ export interface AudioBriefing {
   script: string;
   audio_file?: string;
   /** When present, the player plays sections sequentially and pauses between
-   *  each one to render a quiz from `quizzes` whose afterSectionIndex matches.
-   *  Absent on legacy briefings or when the LLM didn't emit checkpoint quizzes. */
+   *  each one to surface a flashcard via `interruptionPoints`. Absent on
+   *  legacy briefings without active-recall checkpoints. */
   sections?: AudioBriefingSection[];
-  quizzes?: AudioQuiz[];
+  interruptionPoints?: AudioInterruptionPoint[];
 }
 
 export interface FlashcardSession {

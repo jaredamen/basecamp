@@ -9,7 +9,7 @@
     "type-check": "tsc -b --noEmit",
     "lint": "eslint .",
     "preview": "vite preview",
-    "test": "vitest run --exclude 'src/components/__tests__/AudioPlayer.test.*'",
+    "test": "vitest run",
     "test:watch": "vitest --watch",
     "test:coverage": "vitest --coverage",
     "test:ui": "vitest --ui",

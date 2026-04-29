@@ -1,13 +1,57 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
-import type { AudioBriefing, AudioQuiz } from '../types';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import type { AudioBriefing, AudioInterruptionPoint } from '../types';
+import type { Flashcard } from '../services/aiPrompting';
 import { useAudioPlayer } from '../hooks/useAudioPlayer';
 import { useTTS } from '../hooks/useTTS';
 import { useBYOK } from '../hooks/useBYOK';
 import { fetchVoiceAudio, InsufficientCreditsError } from '../services/voiceTTS';
+import { briefingLibrary } from '../services/briefingLibrary';
 
 interface AudioPlayerProps {
   briefing: AudioBriefing;
+  /** The deck of flashcards backing this briefing. The audio's interruption
+   *  points reference cards from here by id; the player surfaces them as
+   *  flashcard-flip overlays mid-listen. Pass an empty array if no deck
+   *  (legacy briefings) — the audio plays without interruptions. */
+  cards: Flashcard[];
   onBack: () => void;
+}
+
+/**
+ * On a fresh briefing we use the LLM-chosen interruption points as-is.
+ * On a re-listen, we override the cardIds to prioritize cards the user has
+ * marked "Review Again" — same number of breaks, but they target the cards
+ * that actually need reinforcement. First-listen behavior unchanged.
+ */
+function chooseInterruptionPoints(
+  generated: AudioInterruptionPoint[],
+  cards: Flashcard[],
+  briefingId: string,
+): AudioInterruptionPoint[] {
+  if (generated.length === 0 || cards.length === 0) return generated;
+  const history = briefingLibrary.getReviewHistory(briefingId);
+  if (Object.keys(history).length === 0) return generated;
+
+  // Score each card: higher = more in need of review. Cards never reviewed
+  // get a small boost so the user sees variety on a re-listen.
+  const ranked = cards
+    .map(card => {
+      const h = history[card.id];
+      const struggle = h ? h.reviewAgain - h.gotIt : 0;
+      const novelty = h ? 0 : 0.5;
+      const recency = h?.lastReviewedAt ?? '';
+      return { card, score: struggle + novelty, recency };
+    })
+    .sort((a, b) => {
+      if (b.score !== a.score) return b.score - a.score;
+      // Tie: least-recently-seen wins (older `recency` string sorts first).
+      return a.recency.localeCompare(b.recency);
+    });
+
+  return generated.map((point, idx) => ({
+    afterSectionIndex: point.afterSectionIndex,
+    cardId: ranked[idx % ranked.length].card.id,
+  }));
 }
 
 const ArrowBackIcon: React.FC<{ className?: string }> = ({ className }) => (
@@ -79,7 +123,7 @@ function classifyAudioError(err: unknown): string {
   return 'Voice service unavailable. Using browser voice.';
 }
 
-export const AudioPlayer: React.FC<AudioPlayerProps> = ({ briefing, onBack }) => {
+export const AudioPlayer: React.FC<AudioPlayerProps> = ({ briefing, cards, onBack }) => {
   const { playerState, loadBriefing, play, pause } = useAudioPlayer();
   const { ttsState, speak, stop: stopTTS } = useTTS();
   const { config, isManaged } = useBYOK();
@@ -91,13 +135,23 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({ briefing, onBack }) =>
   const [showScript, setShowScript] = useState(false);
 
   const sections = briefing.sections;
-  const quizzes = briefing.quizzes;
-  const hasInteractive = !!(sections && sections.length > 0 && quizzes);
+  // Re-listen smart selection: if the user has Got It / Review Again history
+  // on this briefing, override which cards interrupt where.
+  const interruptionPoints = useMemo(
+    () => chooseInterruptionPoints(briefing.interruptionPoints ?? [], cards, briefing.briefing_id),
+    [briefing.interruptionPoints, cards, briefing.briefing_id],
+  );
+  const cardsById = useMemo(() => {
+    const m = new Map<string, Flashcard>();
+    for (const c of cards) m.set(c.id, c);
+    return m;
+  }, [cards]);
+  const hasInteractive = !!(sections && sections.length > 0 && interruptionPoints.length > 0);
 
   const [sectionIndex, setSectionIndex] = useState(0);
   const [isSectionPlaying, setIsSectionPlaying] = useState(false);
-  const [pendingQuiz, setPendingQuiz] = useState<AudioQuiz | null>(null);
-  const [quizSelection, setQuizSelection] = useState<number | null>(null);
+  const [pendingCard, setPendingCard] = useState<Flashcard | null>(null);
+  const [cardRevealed, setCardRevealed] = useState(false);
   const [isFetchingAudio, setIsFetchingAudio] = useState(false);
   const [backend, setBackend] = useState<Backend>('openai');
   /** Single voice-error banner. Set whenever we fall back from OpenAI nova
@@ -137,8 +191,8 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({ briefing, onBack }) =>
     loadBriefing(briefing);
     setSectionIndex(0);
     setIsSectionPlaying(false);
-    setPendingQuiz(null);
-    setQuizSelection(null);
+    setPendingCard(null);
+    setCardRevealed(false);
     setBackend('openai');
     setVoiceError(null);
     inFlightRef.current.clear();
@@ -208,10 +262,11 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({ briefing, onBack }) =>
     utterance.onstart = () => setIsSectionPlaying(true);
     utterance.onend = () => {
       setIsSectionPlaying(false);
-      const quiz = quizzes?.find(q => q.afterSectionIndex === i);
-      if (quiz) {
-        setPendingQuiz(quiz);
-        setQuizSelection(null);
+      const point = interruptionPoints.find(p => p.afterSectionIndex === i);
+      const card = point ? cardsById.get(point.cardId) : undefined;
+      if (card) {
+        setPendingCard(card);
+        setCardRevealed(false);
         return;
       }
       const next = i + 1;
@@ -226,7 +281,7 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({ briefing, onBack }) =>
     setSectionIndex(i);
     if (window.speechSynthesis.paused) window.speechSynthesis.resume();
     window.speechSynthesis.speak(utterance);
-  }, [sections, quizzes]);
+  }, [sections, interruptionPoints, cardsById]);
 
   /** Play section i: prefer OpenAI audio, fall back to browser speech. */
   const playSection = useCallback(async (i: number) => {
@@ -258,10 +313,11 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({ briefing, onBack }) =>
     el.onpause = () => setIsSectionPlaying(false);
     el.onended = () => {
       setIsSectionPlaying(false);
-      const quiz = quizzes?.find(q => q.afterSectionIndex === i);
-      if (quiz) {
-        setPendingQuiz(quiz);
-        setQuizSelection(null);
+      const point = interruptionPoints.find(p => p.afterSectionIndex === i);
+      const card = point ? cardsById.get(point.cardId) : undefined;
+      if (card) {
+        setPendingCard(card);
+        setCardRevealed(false);
         return;
       }
       const next = i + 1;
@@ -289,11 +345,11 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({ briefing, onBack }) =>
     if (sections && i + 1 < sections.length) {
       void fetchSectionAudio(i + 1);
     }
-  }, [sections, quizzes, fetchSectionAudio, speakViaBrowser]);
+  }, [sections, interruptionPoints, cardsById, fetchSectionAudio, speakViaBrowser]);
 
   const handlePlayPause = () => {
     if (hasInteractive) {
-      if (pendingQuiz) return;
+      if (pendingCard) return;
 
       if (isSectionPlaying) {
         if (backend === 'openai') {
@@ -334,17 +390,22 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({ briefing, onBack }) =>
     }
   };
 
-  const handleQuizAnswer = (choiceIndex: number) => {
-    if (!pendingQuiz || quizSelection !== null) return;
-    setQuizSelection(choiceIndex);
+  const handleCardVerdict = (verdict: 'gotIt' | 'reviewAgain') => {
+    if (!pendingCard) return;
+    // Persist to the library so re-listens can prioritize struggle cards.
+    // No-op if the briefing isn't saved yet (first listen before auto-save).
+    briefingLibrary.recordCardReview(briefing.briefing_id, pendingCard.id, verdict);
 
-    const isCorrect = choiceIndex === pendingQuiz.correctIndex;
-    const advanceMs = isCorrect ? 1500 : 3000;
+    // Find which interruption point this card resolved so we know which
+    // section to advance past.
+    const matchedPoint = interruptionPoints.find(p => p.cardId === pendingCard.id);
+    const fromIndex = matchedPoint?.afterSectionIndex ?? sectionIndex;
+    const advanceMs = verdict === 'gotIt' ? 800 : 1400;
 
     window.setTimeout(() => {
-      const nextIdx = pendingQuiz.afterSectionIndex + 1;
-      setPendingQuiz(null);
-      setQuizSelection(null);
+      setPendingCard(null);
+      setCardRevealed(false);
+      const nextIdx = fromIndex + 1;
       setSectionIndex(nextIdx);
       if (sections && nextIdx < sections.length) {
         void playSection(nextIdx);
@@ -356,8 +417,8 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({ briefing, onBack }) =>
     ? isSectionPlaying
     : (playerState.isPlaying || ttsState.isReading);
 
-  const statusLabel = pendingQuiz
-    ? 'Quiz time'
+  const statusLabel = pendingCard
+    ? 'Recall time'
     : isFetchingAudio
       ? 'Loading voice…'
       : isSectionPlaying
@@ -460,7 +521,7 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({ briefing, onBack }) =>
                 </div>
                 <div className="flex justify-between text-xs text-dark-400 mt-2">
                   <span>{statusLabel}</span>
-                  <span>{quizzes?.length ?? 0} checkpoint{(quizzes?.length ?? 0) === 1 ? '' : 's'}</span>
+                  <span>{interruptionPoints.length} checkpoint{interruptionPoints.length === 1 ? '' : 's'}</span>
                 </div>
               </div>
             )}
@@ -473,7 +534,7 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({ briefing, onBack }) =>
         <div className="audio-player-controls">
           <button
             onClick={handlePlayPause}
-            disabled={!!pendingQuiz || isFetchingAudio}
+            disabled={!!pendingCard || isFetchingAudio}
             className="p-4 bg-blue-600 hover:bg-blue-700 disabled:bg-dark-700 disabled:cursor-not-allowed rounded-full text-white transition-colors"
             aria-label={isCurrentlyPlaying ? 'Pause' : isFetchingAudio ? 'Loading' : 'Play'}
           >
@@ -488,80 +549,80 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({ briefing, onBack }) =>
         </div>
       </div>
 
-      {pendingQuiz && (
-        <QuizOverlay
-          quiz={pendingQuiz}
-          selection={quizSelection}
-          onSelect={handleQuizAnswer}
+      {pendingCard && (
+        <FlashcardOverlay
+          card={pendingCard}
+          revealed={cardRevealed}
+          onReveal={() => setCardRevealed(true)}
+          onVerdict={handleCardVerdict}
         />
       )}
     </div>
   );
 };
 
-interface QuizOverlayProps {
-  quiz: AudioQuiz;
-  selection: number | null;
-  onSelect: (choiceIndex: number) => void;
+interface FlashcardOverlayProps {
+  card: Flashcard;
+  revealed: boolean;
+  onReveal: () => void;
+  onVerdict: (verdict: 'gotIt' | 'reviewAgain') => void;
 }
 
-const QuizOverlay: React.FC<QuizOverlayProps> = ({ quiz, selection, onSelect }) => {
-  const answered = selection !== null;
-  const isCorrect = selection === quiz.correctIndex;
-
+/**
+ * Mid-listen flashcard interrupt. Shows the question (front), waits for the
+ * user to recall, reveals on tap, then captures Got It / Review Again.
+ * Same mechanic as the standalone Study Cards view — one concept, three
+ * surfaces (cards / audio interrupt / re-listen prioritization).
+ */
+const FlashcardOverlay: React.FC<FlashcardOverlayProps> = ({ card, revealed, onReveal, onVerdict }) => {
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-dark-900/85 backdrop-blur-md p-4"
       role="dialog"
       aria-modal="true"
-      aria-label="Active recall checkpoint"
+      aria-label="Active recall flashcard"
     >
       <div className="w-full max-w-lg bg-dark-800 border border-purple-500/30 rounded-2xl p-6 shadow-2xl">
         <div className="flex items-center gap-2 text-purple-400 text-xs font-semibold uppercase tracking-wider mb-3">
           <span className="inline-block w-2 h-2 rounded-full bg-purple-400 animate-pulse" />
-          Quick check
+          {revealed ? 'Answer' : 'Recall'}
         </div>
-        <p className="text-lg font-semibold text-white leading-snug mb-5">{quiz.question}</p>
 
-        <div className="space-y-2">
-          {quiz.choices.map((choice, idx) => {
-            const isSelected = selection === idx;
-            const isAnswerKey = idx === quiz.correctIndex;
-            let stateClass = 'bg-dark-700 border-transparent text-dark-100 hover:border-purple-500/40 hover:bg-purple-500/10';
-            if (answered) {
-              if (isAnswerKey) {
-                stateClass = 'bg-green-500/15 border-green-400/60 text-white';
-              } else if (isSelected) {
-                stateClass = 'bg-orange-500/15 border-orange-400/60 text-white';
-              } else {
-                stateClass = 'bg-dark-700 border-transparent text-dark-400 opacity-60';
-              }
-            }
-            return (
+        <p className="text-lg font-semibold text-white leading-snug mb-5">{card.front}</p>
+
+        {!revealed ? (
+          <button
+            onClick={onReveal}
+            className="w-full py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold transition-colors"
+          >
+            Show answer
+          </button>
+        ) : (
+          <>
+            <div className="rounded-xl bg-dark-700/60 border border-dark-600 p-4 space-y-3">
+              <p className="text-base text-dark-100 leading-relaxed">{card.back}</p>
+              {card.explanation && (
+                <p className="pt-3 border-t border-dark-700 text-sm text-dark-300 italic leading-relaxed">
+                  {card.explanation}
+                </p>
+              )}
+            </div>
+
+            <div className="flex gap-3 mt-5">
               <button
-                key={idx}
-                onClick={() => onSelect(idx)}
-                disabled={answered}
-                className={`w-full text-left px-4 py-3 rounded-xl border-2 text-base flex items-center gap-3 transition-all ${stateClass}`}
+                onClick={() => onVerdict('reviewAgain')}
+                className="flex-1 py-3 rounded-xl bg-orange-600/20 border border-orange-600/40 text-orange-300 hover:bg-orange-600/30 font-semibold transition-colors"
               >
-                <span className="w-8 h-8 rounded-lg bg-dark-600 text-dark-200 font-bold text-sm flex items-center justify-center flex-shrink-0">
-                  {String.fromCharCode(65 + idx)}
-                </span>
-                <span className="flex-1">{choice}</span>
-                {answered && isAnswerKey && <span className="text-green-400 font-bold">✓</span>}
-                {answered && isSelected && !isAnswerKey && <span className="text-orange-400 font-bold">✗</span>}
+                👎 Review again
               </button>
-            );
-          })}
-        </div>
-
-        {answered && (
-          <div className={`mt-4 rounded-lg px-4 py-3 text-sm ${isCorrect ? 'bg-green-500/10 text-green-300' : 'bg-orange-500/10 text-orange-300'}`}>
-            <span className="font-semibold">{isCorrect ? 'Right.' : 'Not quite.'} </span>
-            {quiz.explanation || (isCorrect
-              ? 'Resuming the lesson…'
-              : `The correct answer was ${String.fromCharCode(65 + quiz.correctIndex)}.`)}
-          </div>
+              <button
+                onClick={() => onVerdict('gotIt')}
+                className="flex-1 py-3 rounded-xl bg-green-600/20 border border-green-600/40 text-green-300 hover:bg-green-600/30 font-semibold transition-colors"
+              >
+                👍 Got it
+              </button>
+            </div>
+          </>
         )}
       </div>
     </div>
