@@ -1,4 +1,5 @@
 import type { AudioBriefing } from './types';
+import type { Flashcard } from './services/aiPrompting';
 
 /**
  * Dev-only fixture used by `?demo=audio` to verify the AudioPlayer's
@@ -6,8 +7,29 @@ import type { AudioBriefing } from './types';
  * locally. Loaded only when `import.meta.env.DEV` is true (the App-level
  * gate makes this dead-code in production builds).
  */
+export const DEMO_FLASHCARDS: Flashcard[] = [
+  {
+    id: 'demo-card-factory',
+    front: 'How does photosynthesis turn sunlight into food?',
+    back: 'Plants capture light energy with chlorophyll and use it to combine CO₂ and water into glucose, releasing oxygen as a byproduct.',
+    explanation:
+      'Think of a plant as a solar-powered factory. Sunlight is the electricity bill (the sun never invoices). CO₂ walks in the front door, water comes up from the basement, and glucose rolls off the assembly line.',
+    difficulty: 'easy',
+    tags: ['biology'],
+  },
+  {
+    id: 'demo-card-oxygen',
+    front: 'What does photosynthesis release as a byproduct?',
+    back: 'Oxygen. Plants exhale it as a waste product of splitting water during the light reactions.',
+    explanation:
+      "Every breath you take was once exhaled by a plant. The factory's exhaust vent is the entire planet's atmosphere — and we evolved to breathe their waste.",
+    difficulty: 'easy',
+    tags: ['biology'],
+  },
+];
+
 export const DEMO_PAUSE_AND_QUIZ_BRIEFING: AudioBriefing = {
-  briefing_id: 'demo-pause-and-quiz',
+  briefing_id: 'demo-deck',
   title: 'Photosynthesis (demo)',
   source: '',
   created_at: new Date().toISOString(),
@@ -31,22 +53,8 @@ export const DEMO_PAUSE_AND_QUIZ_BRIEFING: AudioBriefing = {
       content: "But unlike any factory you've ever seen, this one breathes out something we need to live. Oxygen. Every breath you take — every single one — was once exhaled by a plant. The factory you started picturing in your kitchen is the same one that filled the planet's atmosphere over billions of years.",
     },
   ],
-  quizzes: [
-    {
-      id: 'demo-quiz-1',
-      afterSectionIndex: 0,
-      question: 'What does the lesson compare a plant to?',
-      choices: ['A solar panel', 'A factory', 'A kitchen', 'A river'],
-      correctIndex: 1,
-      explanation: 'The kitchen scene was the setup — but the plant itself is framed as a factory running on sunlight.',
-    },
-    {
-      id: 'demo-quiz-2',
-      afterSectionIndex: 2,
-      question: 'What does photosynthesis release as a byproduct?',
-      choices: ['Carbon dioxide', 'Sugar', 'Oxygen', 'Heat'],
-      correctIndex: 2,
-      explanation: 'Plants exhale oxygen — every breath you take was once exhaled by one.',
-    },
+  interruptionPoints: [
+    { afterSectionIndex: 1, cardId: 'demo-card-factory' },
+    { afterSectionIndex: 2, cardId: 'demo-card-oxygen' },
   ],
 };

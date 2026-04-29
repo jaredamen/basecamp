@@ -10,7 +10,7 @@ import { AppHeader } from './components/AppHeader';
 import { AddPaymentModal } from './components/AddPaymentModal';
 import { AudioPlayer } from './components/AudioPlayer';
 import { LibraryView } from './components/LibraryView';
-import { DEMO_PAUSE_AND_QUIZ_BRIEFING } from './devDemoBriefing';
+import { DEMO_PAUSE_AND_QUIZ_BRIEFING, DEMO_FLASHCARDS } from './devDemoBriefing';
 import { briefingLibrary, type SavedBriefing } from './services/briefingLibrary';
 
 type AppState = 'setup' | 'input' | 'generating' | 'content' | 'library';
@@ -30,6 +30,7 @@ function App() {
       <div className="min-h-screen bg-gradient-to-br from-dark-900 via-dark-800 to-dark-900 flex flex-col">
         <AudioPlayer
           briefing={DEMO_PAUSE_AND_QUIZ_BRIEFING}
+          cards={DEMO_FLASHCARDS}
           onBack={() => {
             window.history.replaceState({}, '', window.location.pathname);
             window.location.reload();

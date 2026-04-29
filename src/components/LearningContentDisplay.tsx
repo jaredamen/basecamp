@@ -34,15 +34,16 @@ export function LearningContentDisplay({
     return (
       <AudioPlayer
         briefing={{
-          briefing_id: 'audio-script',
+          briefing_id: flashcards.id, // shared id so per-card review history attaches to the deck
           title: audioScript.title || 'Audio Briefing',
           source: '',
           created_at: new Date().toISOString(),
           script: audioScript.content,
           audio_file: undefined,
           sections: audioScript.sections.map(s => ({ id: s.id, content: s.content })),
-          quizzes: audioScript.quizzes,
+          interruptionPoints: audioScript.interruptionPoints,
         }}
+        cards={flashcards.cards}
         onBack={() => setViewMode('overview')}
       />
     );
