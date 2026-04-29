@@ -16,7 +16,10 @@ export function LearningContentDisplay({
   audioScript,
   onBack: _onBack
 }: LearningContentDisplayProps) {
-  const [viewMode, setViewMode] = useState<ViewMode>('overview');
+  // Default to 'audio' — the Overview tab is currently a placeholder; landing
+  // straight in the audio briefing matches the SLC story ("hit play, listen,
+  // learn"). When Overview gets real content this can flip back.
+  const [viewMode, setViewMode] = useState<ViewMode>('audio');
 
   if (viewMode === 'flashcards') {
     return (

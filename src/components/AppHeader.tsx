@@ -4,9 +4,11 @@ interface AppHeaderProps {
   hasPaymentMethod: boolean;
   freeRemainingCents: number;
   hasContent: boolean;
-  currentView: 'input' | 'generating' | 'content';
+  libraryCount: number;
+  currentView: 'input' | 'generating' | 'content' | 'library';
   onNavigateHome: () => void;
   onNavigateContent: () => void;
+  onNavigateLibrary: () => void;
   onAddPaymentMethod: () => void;
   onSignOut: () => void;
 }
@@ -17,19 +19,25 @@ export function AppHeader({
   hasPaymentMethod,
   freeRemainingCents,
   hasContent,
+  libraryCount,
   currentView,
   onNavigateHome,
   onNavigateContent,
+  onNavigateLibrary,
   onAddPaymentMethod,
   onSignOut,
 }: AppHeaderProps) {
   const usageDollars = (usageCents / 100).toFixed(2);
   const freeDollars = (freeRemainingCents / 100).toFixed(2);
 
+  const tabClass = (active: boolean) =>
+    `px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+      active ? 'bg-dark-700 text-white' : 'text-dark-300 hover:text-white hover:bg-dark-800'
+    }`;
+
   return (
     <header className="fixed top-0 left-0 right-0 z-50 bg-dark-900/95 backdrop-blur-sm border-b border-dark-700">
       <div className="max-w-6xl mx-auto px-4 h-14 flex items-center justify-between">
-        {/* Left: Logo + nav */}
         <div className="flex items-center space-x-6">
           <button
             onClick={onNavigateHome}
@@ -39,32 +47,25 @@ export function AppHeader({
           </button>
 
           <nav className="hidden sm:flex items-center space-x-1">
-            <button
-              onClick={onNavigateHome}
-              className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
-                currentView === 'input'
-                  ? 'bg-dark-700 text-white'
-                  : 'text-dark-300 hover:text-white hover:bg-dark-800'
-              }`}
-            >
+            <button onClick={onNavigateHome} className={tabClass(currentView === 'input')}>
               New
             </button>
             {hasContent && (
-              <button
-                onClick={onNavigateContent}
-                className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
-                  currentView === 'content'
-                    ? 'bg-dark-700 text-white'
-                    : 'text-dark-300 hover:text-white hover:bg-dark-800'
-                }`}
-              >
-                My Content
+              <button onClick={onNavigateContent} className={tabClass(currentView === 'content')}>
+                Current
               </button>
             )}
+            <button onClick={onNavigateLibrary} className={tabClass(currentView === 'library')}>
+              Library
+              {libraryCount > 0 && (
+                <span className="ml-1.5 inline-flex items-center justify-center text-xs bg-blue-600/30 text-blue-200 px-1.5 py-0.5 rounded-full">
+                  {libraryCount}
+                </span>
+              )}
+            </button>
           </nav>
         </div>
 
-        {/* Right: Usage + account */}
         <div className="flex items-center space-x-4">
           {hasPaymentMethod ? (
             <span className="text-sm text-dark-400">

@@ -1,8 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { proxyTTS, InsufficientCreditsError } from '../services/managedProxy';
-
-/** Single product voice. OpenAI's "nova" — natural, warm, conversational. */
-const PRODUCT_VOICE = 'nova';
+import { fetchVoiceAudio, InsufficientCreditsError } from '../services/voiceTTS';
+import { useBYOK } from './useBYOK';
 
 /**
  * Convert an error from the proxy into a single-sentence user-visible message
@@ -57,6 +55,14 @@ export function useNovaTTS() {
     errorMessage: null,
   });
 
+  const { config, isManaged } = useBYOK();
+  // BYOK users with an OpenAI key call OpenAI directly for nova; managed users
+  // go through /api/proxy/tts. Both surfaces hand back an MP3 Blob.
+  const byokOpenAIKey =
+    !isManaged && config?.aiProvider?.id === 'openai'
+      ? config.aiProvider.apiKey
+      : undefined;
+
   const audioElRef = useRef<HTMLAudioElement | null>(null);
   const currentBlobUrlRef = useRef<string | null>(null);
 
@@ -106,7 +112,7 @@ export function useNovaTTS() {
     setState(prev => ({ ...prev, isFetching: true, errorMessage: null }));
 
     try {
-      const { audioBlob } = await proxyTTS({ text: text.slice(0, 4096), voice: PRODUCT_VOICE });
+      const audioBlob = await fetchVoiceAudio(text, byokOpenAIKey);
       const url = URL.createObjectURL(audioBlob);
       currentBlobUrlRef.current = url;
 
@@ -141,7 +147,7 @@ export function useNovaTTS() {
       setState(prev => ({ ...prev, isFetching: false, errorMessage: classifyVoiceError(err) }));
       speakViaBrowser(text);
     }
-  }, [stop, speakViaBrowser, releaseCurrentBlob]);
+  }, [stop, speakViaBrowser, releaseCurrentBlob, byokOpenAIKey]);
 
   return {
     speak,

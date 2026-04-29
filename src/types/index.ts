@@ -66,30 +66,3 @@ export interface DataLoader {
   importFromFile(file: File): Promise<FlashcardDeck[] | AudioBriefing[]>;
 }
 
-export type VoicePersonality = 'standard' | 'peter-griffin' | 'motivational' | 'asmr';
-
-export interface VoiceSettings {
-  personality: VoicePersonality;
-  rate: number;
-  pitch: number;
-  volume: number;
-  systemVoice?: string;
-}
-
-export interface TTSState {
-  isReading: boolean;
-  currentText?: string;
-  voiceSettings: VoiceSettings;
-  availableVoices: SpeechSynthesisVoice[];
-}
-
-export interface EnhancedAudioPlayerState extends AudioPlayerState {
-  ttsState: TTSState;
-}
-
-export type AppViewState = 
-  | 'welcome'
-  | 'demo' 
-  | 'profile-setup'
-  | 'dashboard'
-  | 'main-app';
