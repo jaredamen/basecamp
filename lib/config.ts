@@ -31,7 +31,10 @@ export const config = {
   openai: {
     get apiKey() { return requireEnv('OPENAI_API_KEY'); },
     defaultModel: 'gpt-4o',
-    ttsModel: 'tts-1',
+    // tts-1-hd is the higher-quality TTS model. ~2× cost vs tts-1 but
+    // noticeably warmer, more natural, podcast-grade. Required for the
+    // "actually learn, not AI yourself into stupidity" thesis to land.
+    ttsModel: 'tts-1-hd',
     ttsDefaultVoice: 'nova',
   },
 
@@ -61,8 +64,9 @@ export const config = {
     'gpt-4o-mini': { input: 0.00000015, output: 0.0000006 },
   } as Record<string, { input: number; output: number }>,
 
-  // OpenAI TTS pricing (dollars per character)
-  openaiTTSPricePerChar: 0.000015,
+  // OpenAI TTS pricing (dollars per character) — for tts-1-hd ($30/1M chars).
+  // If you swap ttsModel back to 'tts-1' for any reason, drop this to 0.000015.
+  openaiTTSPricePerChar: 0.000030,
 
   // App URL for redirects (OAuth callback, Stripe return, etc).
   // VERCEL_PROJECT_PRODUCTION_URL is the stable production domain (e.g. basecamp-pink.vercel.app).

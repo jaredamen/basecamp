@@ -53,6 +53,34 @@ const formatDate = (dateString: string) => {
 
 type Backend = 'openai' | 'browser';
 
+/**
+ * Convert any error from /api/proxy/tts into a single-sentence user-visible
+ * message that explains why the high-quality voice isn't playing. We always
+ * fall back to the browser robot voice, but the user must know *why* — silent
+ * degradation is the worst possible UX.
+ */
+function classifyAudioError(err: unknown): string {
+  if (err instanceof InsufficientCreditsError) {
+    return 'Out of credits. Add a payment method to keep listening with the high-quality voice.';
+  }
+  if (err instanceof Error) {
+    const m = err.message.toLowerCase();
+    if (m.includes('401') || m.includes('unauthor') || m.includes('sign in')) {
+      return 'Sign in to use the high-quality voice. Using browser voice for now.';
+    }
+    if (m.includes('429') || m.includes('rate')) {
+      return 'Rate limited. Using browser voice for now — try again in a moment.';
+    }
+    if (m.includes('timeout') || m.includes('aborted')) {
+      return 'Voice service timed out. Using browser voice.';
+    }
+    if (m.includes('payment') || m.includes('402')) {
+      return 'Add a payment method to use the high-quality voice. Using browser voice for now.';
+    }
+  }
+  return 'Voice service unavailable. Using browser voice.';
+}
+
 export const AudioPlayer: React.FC<AudioPlayerProps> = ({ briefing, onBack }) => {
   const { playerState, loadBriefing, play, pause } = useAudioPlayer();
   const { ttsState, speak, stop: stopTTS } = useTTS();
@@ -68,7 +96,9 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({ briefing, onBack }) =>
   const [quizSelection, setQuizSelection] = useState<number | null>(null);
   const [isFetchingAudio, setIsFetchingAudio] = useState(false);
   const [backend, setBackend] = useState<Backend>('openai');
-  const [creditsError, setCreditsError] = useState<string | null>(null);
+  /** Single voice-error banner. Set whenever we fall back from OpenAI nova
+   *  to the browser robot voice, so the user always knows *why*. */
+  const [voiceError, setVoiceError] = useState<string | null>(null);
 
   // OpenAI audio playback. Cache one blob URL per section so re-listening
   // doesn't re-bill, and prefetch the next section while the current one plays.
@@ -106,7 +136,7 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({ briefing, onBack }) =>
     setPendingQuiz(null);
     setQuizSelection(null);
     setBackend('openai');
-    setCreditsError(null);
+    setVoiceError(null);
     inFlightRef.current.clear();
     return () => {
       window.speechSynthesis.cancel();
@@ -142,12 +172,10 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({ briefing, onBack }) =>
         audioUrlsRef.current.set(i, url);
         return url;
       } catch (err) {
-        if (err instanceof InsufficientCreditsError) {
-          setCreditsError('Out of credits. Top up to keep listening.');
-        } else {
-          // Auth missing (demo path), network error, etc. — caller falls back.
-          console.warn('OpenAI TTS unavailable, falling back to browser voice', err);
-        }
+        // Always tell the user *why* we're falling back. Silent degradation
+        // to the browser robot voice is the worst possible UX.
+        setVoiceError(classifyAudioError(err));
+        console.warn('OpenAI TTS unavailable, falling back to browser voice', err);
         return null;
       } finally {
         inFlightRef.current.delete(i);
@@ -379,9 +407,16 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({ briefing, onBack }) =>
         </div>
       </div>
 
-      {creditsError && (
-        <div className="bg-orange-600/20 border-b border-orange-600/30 text-orange-300 text-sm px-4 py-2 text-center">
-          {creditsError}
+      {voiceError && (
+        <div className="bg-orange-600/20 border-b border-orange-600/30 text-orange-300 text-sm px-4 py-3 flex items-center justify-between gap-4">
+          <span className="flex-1">{voiceError}</span>
+          <button
+            onClick={() => setVoiceError(null)}
+            className="text-orange-200 hover:text-white text-xs underline-offset-2 hover:underline"
+            aria-label="Dismiss voice notice"
+          >
+            Dismiss
+          </button>
         </div>
       )}
 
