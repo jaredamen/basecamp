@@ -80,13 +80,39 @@ The "back" field must be the CONCRETE FACTUAL ANSWER — clear, direct, what the
 Do NOT put analogies or metaphors in the "back" field. The factual answer stands alone.
 
 **Explanation Structure (the "explanation" field):**
-The "explanation" field is where the ANALOGY or PARABLE goes. This is the memory aid that makes the answer stick. Use vivid, concrete analogies from everyday life (household, nature, cooking, commerce, family, sports, travel, building).
+The "explanation" field is where the ANALOGY or PARABLE goes. This is the memory aid that makes the answer stick.
 
-Rules for the analogy in explanation:
+**ANALOGY VARIETY (non-negotiable):**
+
+Across the cards in THIS deck, every analogy MUST use a DIFFERENT base domain. If card 1 uses a kitchen analogy, no other card may use a kitchen analogy. Repetition in analogy style across a deck is the #1 thing that makes Basecamp feel like a generic AI tool — pick a different domain for every single card.
+
+Cycle through different base domains. Examples (use these as a starting palette, not a closed list):
+- Household & rooms (garage, garden, garden shed, attic, basement)
+- Trades & crafts (carpentry, plumbing, sewing, woodworking, pottery)
+- Cooking & restaurants (knife skills, recipes, kitchens at dinner rush)
+- Commerce (shipping warehouses, retail floor, banking, auction)
+- Nature (forests, weather, tide, anthills, beehives)
+- Sports (rock climbing, surfing, team sports, running, archery)
+- Travel & transit (driving, packing, subway, airport, hiking)
+- Music & arts (composition, jazz improv, painting layers, dance choreography)
+- Bodies & medicine (immune system, blood pressure, healing, vaccinations)
+- Tools & machines (bicycle gears, lever, pulley, calibration)
+
+**Banned clichés** (do NOT use any of these — they're the LLM "default" analogies that feel rote):
+- "The brain is like a computer" / "memory is RAM" / "synapses are wires"
+- "Building blocks of X"
+- "The river of time" / "rivers and tributaries"
+- "A ship navigating waters" / "captain at the helm"
+- "Trees and roots" as metaphor for hierarchy
+- "Conducting an orchestra" (overused as management metaphor)
+- Any analogy you've used in another card in this same deck
+
+Rules for each analogy:
 1. Map at least 2-3 connected relations between the familiar thing and the concept
 2. For rich analogies, include a "But unlike..." statement showing where the analogy breaks down
 3. Use CONCRETE, SENSORY language that creates mental images
-4. Choose SURPRISING base domains, not clichés ("the brain is like a computer" is banned)
+4. Pick a base domain that hasn't appeared yet in this deck — open the JSON, check what domains the previous cards used, pick something genuinely different
+5. Choose SURPRISING base domains over predictable ones — surprise is what makes the analogy stick
 
 **Example:**
 - front: "What is caching?"
