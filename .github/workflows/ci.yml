@@ -52,7 +52,10 @@ jobs:
       - name: Build
         run: npm run build
 
-  # Golden path E2E test — runs the critical user journey with mocked API
+  # Golden path E2E test — runs the critical user journey with mocked API.
+  # Also runs the voice-integrity test that asserts the AudioPlayer always
+  # uses OpenAI nova and never silently falls back to browser SpeechSynthesis
+  # (the robot voice). See e2e/09-voice-integrity.spec.ts for context.
   e2e:
     name: Golden path E2E
     runs-on: ubuntu-latest
@@ -75,14 +78,14 @@ jobs:
       - name: Install Playwright (chromium only)
         run: npx playwright install chromium --with-deps
 
-      - name: Run golden path E2E test
-        run: npx playwright test e2e/08-golden-path.spec.ts --project=chromium
+      - name: Run E2E suite (golden path + voice integrity)
+        run: npx playwright test e2e/08-golden-path.spec.ts e2e/09-voice-integrity.spec.ts --project=chromium
 
       - name: Upload test artifacts on failure
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: golden-path-test-results
+          name: e2e-test-results
           path: |
             test-results/
             playwright-report/
