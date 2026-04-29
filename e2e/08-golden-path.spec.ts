@@ -203,50 +203,31 @@ test.describe('Golden Path: Full generation flow', () => {
     await generateButton.click();
 
     // === STEP 5: Wait for generation to complete ===
-    // Should transition through loading → content
-    // The loading indicator shows stages, then auto-transitions to content
-
-    // Wait for the content page to appear (flashcard title)
+    // Lands directly on the Audio tab (the SLC default — empty Overview is gone).
+    // The AudioPlayer header shows the audio briefing's title.
     await expect(
-      page.getByText('Stoicism Fundamentals')
+      page.getByText('Understanding Stoicism')
     ).toBeVisible({ timeout: 30000 });
 
-    // === STEP 6: Verify flashcards are displayed ===
-    // The content page should show the title and overview
-    await expect(page.getByText('Stoicism Fundamentals')).toBeVisible();
+    // === STEP 6: Tab selector should be pinned at top — switch to Study Cards ===
+    const studyCardsTab = page.getByRole('button', { name: 'Study Cards' });
+    await expect(studyCardsTab).toBeVisible({ timeout: 5000 });
+    await studyCardsTab.click();
 
-    // Click "Study Cards" to enter flashcard mode
-    const studyCardsButton = page.getByText('Study Cards');
-    if (await studyCardsButton.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await studyCardsButton.click();
+    // Verify a flashcard question is visible (use .first() — text appears in card + nav)
+    await expect(
+      page.getByText('What is Stoicism?').first()
+    ).toBeVisible({ timeout: 5000 });
 
-      // Verify a flashcard question is visible (use .first() — text appears in card + nav)
-      await expect(
-        page.getByText('What is Stoicism?').first()
-      ).toBeVisible({ timeout: 5000 });
-
-      // Click "Back to overview" to return
-      const backButton = page.getByText('Back to overview');
-      if (await backButton.isVisible({ timeout: 2000 }).catch(() => false)) {
-        await backButton.click();
-      }
-    }
-
-    // === STEP 7: Verify audio section exists ===
-    const audioTab = page.getByText('Audio');
-    if (await audioTab.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await audioTab.click();
-      // Should show the audio script title or content
-      await expect(
-        page
-          .getByText('Understanding Stoicism')
-          .or(page.getByText('Introduction'))
-          .or(page.getByText('ancient Greek marketplace'))
-      ).toBeVisible({ timeout: 5000 });
-    }
+    // === STEP 7: Switch back to Audio via the tab selector ===
+    const audioTab = page.getByRole('button', { name: 'Audio' });
+    await expect(audioTab).toBeVisible({ timeout: 5000 });
+    await audioTab.click();
+    await expect(
+      page.getByText('Understanding Stoicism')
+    ).toBeVisible({ timeout: 5000 });
 
     // === STEP 8: Verify header navigation still works ===
-    // Click "New" in the header to go back to input
     const newButton = page.getByRole('button', { name: 'New' });
     if (await newButton.isVisible({ timeout: 2000 }).catch(() => false)) {
       await newButton.click();
@@ -255,19 +236,16 @@ test.describe('Golden Path: Full generation flow', () => {
       ).toBeVisible({ timeout: 5000 });
     }
 
-    // Click "My Content" to go back to generated content
-    const myContentButton = page.getByRole('button', {
-      name: 'My Content',
-    });
-    if (await myContentButton.isVisible({ timeout: 2000 }).catch(() => false)) {
-      await myContentButton.click();
+    // Click "Current" in the header to go back to generated content
+    // (renamed from "My Content" in the SLC simplification PR)
+    const currentButton = page.getByRole('button', { name: 'Current' });
+    if (await currentButton.isVisible({ timeout: 2000 }).catch(() => false)) {
+      await currentButton.click();
       await expect(
-        page.getByRole('heading', { name: 'Stoicism Fundamentals' })
+        page.getByText('Understanding Stoicism')
       ).toBeVisible({ timeout: 5000 });
     }
 
     // === GOLDEN PATH COMPLETE ===
-    // If we got here, the full flow works:
-    // Auth → Input → Generate → Flashcards → Audio → Navigation
   });
 });
