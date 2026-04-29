@@ -9,7 +9,7 @@
     "type-check": "tsc -b --noEmit",
     "lint": "eslint .",
     "preview": "vite preview",
-    "test": "vitest run --exclude 'src/components/__tests__/{VoiceSettings,AudioPlayer,FlashcardViewer}.test.*'",
+    "test": "vitest run --exclude 'src/components/__tests__/AudioPlayer.test.*'",
     "test:watch": "vitest --watch",
     "test:coverage": "vitest --coverage",
     "test:ui": "vitest --ui",
@@ -18,7 +18,7 @@
     "e2e:ui": "playwright test --ui",
     "e2e:debug": "playwright test --debug",
     "e2e:report": "playwright show-report",
-    "e2e:onboarding": "playwright test e2e/05-onboarding-flow.spec.ts e2e/06-profile-management.spec.ts",
+    "e2e:onboarding": "playwright test e2e/05-onboarding-flow.spec.ts",
     "clips:record": "playwright test --config=clips/playwright.config.ts",
     "clips:record:headed": "playwright test --config=clips/playwright.config.ts --headed",
     "clips:convert": "node clips/scripts/convert.mjs"

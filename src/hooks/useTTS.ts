@@ -1,243 +1,76 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
-import type { VoiceSettings, VoicePersonality, TTSState } from '../types';
+import { useEffect, useRef, useState } from 'react';
 
-const DEFAULT_VOICE_SETTINGS: VoiceSettings = {
-  personality: 'standard',
-  rate: 1.0,
-  pitch: 1.0,
-  volume: 0.8,
-};
+/**
+ * Minimal browser-speech-synthesis wrapper. Used as the *fallback* path —
+ * the OS robot voice — when OpenAI nova isn't available. The product voice
+ * is OpenAI nova via /api/proxy/tts; see useNovaTTS.
+ *
+ * No personalities, no intros, no localStorage settings. Just speak + stop.
+ */
 
-const PETER_GRIFFIN_PHRASES = [
-  "Holy crap, that's interesting!",
-  "Nyehehehe, let me read this for ya!",
-  "This is freakin' sweet!",
-  "Alright, listen up!",
-  "Oh my God, who the hell cares... just kidding!",
-];
+const VOICE_RATE = 1.0;
+const VOICE_PITCH = 1.0;
+const VOICE_VOLUME = 0.85;
 
-const getVoicePersonalitySettings = (personality: VoicePersonality): Partial<VoiceSettings> => {
-  switch (personality) {
-    case 'peter-griffin':
-      return {
-        rate: 0.9,
-        pitch: 0.7, // Lower pitch for Peter Griffin effect
-        volume: 0.9,
-      };
-    case 'motivational':
-      return {
-        rate: 1.1,
-        pitch: 1.2,
-        volume: 1.0,
-      };
-    case 'asmr':
-      return {
-        rate: 0.8,
-        pitch: 0.9,
-        volume: 0.6,
-      };
-    default:
-      return {
-        rate: 1.0,
-        pitch: 1.0,
-        volume: 0.8,
-      };
-  }
-};
-
-const getRandomPhrase = (phrases: string[]): string => {
-  return phrases[Math.floor(Math.random() * phrases.length)];
-};
-
-const getInitialVoiceSettings = (): VoiceSettings => {
-  const savedSettings = localStorage.getItem('basecamp-voice-settings');
-  if (savedSettings) {
-    try {
-      const parsedSettings = JSON.parse(savedSettings);
-      return { ...DEFAULT_VOICE_SETTINGS, ...parsedSettings };
-    } catch {
-      return DEFAULT_VOICE_SETTINGS;
-    }
-  }
-  return DEFAULT_VOICE_SETTINGS;
-};
+interface TTSState {
+  isReading: boolean;
+  /** Tuning constants for the browser fallback. AudioPlayer's legacy code
+   *  reads these into a ref to apply to a custom utterance. */
+  voiceSettings: { rate: number; pitch: number; volume: number };
+}
 
 export const useTTS = () => {
   const [ttsState, setTTSState] = useState<TTSState>({
     isReading: false,
-    voiceSettings: getInitialVoiceSettings(),
-    availableVoices: [],
+    voiceSettings: { rate: VOICE_RATE, pitch: VOICE_PITCH, volume: VOICE_VOLUME },
   });
-
   const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
 
-  // Load available voices
   useEffect(() => {
-    const loadVoices = () => {
-      const voices = window.speechSynthesis.getVoices();
-      setTTSState(prev => ({ ...prev, availableVoices: voices }));
-    };
-
-    loadVoices();
-    
-    // Some browsers load voices asynchronously
-    if (window.speechSynthesis.onvoiceschanged !== undefined) {
-      window.speechSynthesis.onvoiceschanged = loadVoices;
-    }
-
     return () => {
-      if (window.speechSynthesis.onvoiceschanged !== undefined) {
-        window.speechSynthesis.onvoiceschanged = null;
+      if (utteranceRef.current) {
+        window.speechSynthesis.cancel();
       }
     };
   }, []);
 
-  // Save voice settings to localStorage
-  const saveVoiceSettings = useCallback((settings: VoiceSettings) => {
-    localStorage.setItem('basecamp-voice-settings', JSON.stringify(settings));
-    setTTSState(prev => ({ ...prev, voiceSettings: settings }));
-  }, []);
+  const speak = (text: string) => {
+    if (!text.trim()) return;
+    if (utteranceRef.current) window.speechSynthesis.cancel();
 
-  const updateVoiceSettings = useCallback((updates: Partial<VoiceSettings>) => {
-    const newSettings = { ...ttsState.voiceSettings, ...updates };
-    saveVoiceSettings(newSettings);
-  }, [ttsState.voiceSettings, saveVoiceSettings]);
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.rate = VOICE_RATE;
+    utterance.pitch = VOICE_PITCH;
+    utterance.volume = VOICE_VOLUME;
 
-  const setVoicePersonality = useCallback((personality: VoicePersonality) => {
-    const personalitySettings = getVoicePersonalitySettings(personality);
-    const newSettings = {
-      ...ttsState.voiceSettings,
-      personality,
-      ...personalitySettings,
-    };
-    saveVoiceSettings(newSettings);
-  }, [ttsState.voiceSettings, saveVoiceSettings]);
-
-  const speak = useCallback((text: string, withIntro: boolean = false) => {
-    // Stop any current speech
-    if (utteranceRef.current) {
-      window.speechSynthesis.cancel();
-    }
-
-    // Prepare text with personality intro if requested
-    let textToSpeak = text;
-    if (withIntro && ttsState.voiceSettings.personality === 'peter-griffin') {
-      const intro = getRandomPhrase(PETER_GRIFFIN_PHRASES);
-      textToSpeak = `${intro} ${text}`;
-    }
-
-    const utterance = new SpeechSynthesisUtterance(textToSpeak);
-    
-    // Apply voice settings
-    utterance.rate = ttsState.voiceSettings.rate;
-    utterance.pitch = ttsState.voiceSettings.pitch;
-    utterance.volume = ttsState.voiceSettings.volume;
-
-    // Set voice if specified
-    if (ttsState.voiceSettings.systemVoice) {
-      const voice = ttsState.availableVoices.find(
-        v => v.name === ttsState.voiceSettings.systemVoice
-      );
-      if (voice) {
-        utterance.voice = voice;
-      }
-    }
-
-    // Set up event handlers
-    utterance.onstart = () => {
-      setTTSState(prev => ({ ...prev, isReading: true, currentText: text }));
-    };
-
-    utterance.onend = () => {
-      setTTSState(prev => ({ ...prev, isReading: false, currentText: undefined }));
-    };
-
-    utterance.onerror = (error) => {
-      console.error('TTS Error:', error);
-      setTTSState(prev => ({ ...prev, isReading: false, currentText: undefined }));
-    };
+    utterance.onstart = () => setTTSState(prev => ({ ...prev, isReading: true }));
+    utterance.onend = () => setTTSState(prev => ({ ...prev, isReading: false }));
+    utterance.onerror = () => setTTSState(prev => ({ ...prev, isReading: false }));
 
     utteranceRef.current = utterance;
+    if (window.speechSynthesis.paused) window.speechSynthesis.resume();
     window.speechSynthesis.speak(utterance);
-  }, [ttsState.voiceSettings, ttsState.availableVoices]);
+  };
 
-  const speakFlashcard = useCallback((question: string, answer: string, readBoth: boolean = false) => {
-    if (readBoth) {
-      const combined = `Question: ${question}. Answer: ${answer}`;
-      speak(combined, true);
-    } else {
-      speak(question, true);
-    }
-  }, [speak]);
+  const pause = () => {
+    if (window.speechSynthesis.speaking) window.speechSynthesis.pause();
+  };
 
-  const pause = useCallback(() => {
-    if (window.speechSynthesis.speaking) {
-      window.speechSynthesis.pause();
-    }
-  }, []);
+  const resume = () => {
+    if (window.speechSynthesis.paused) window.speechSynthesis.resume();
+  };
 
-  const resume = useCallback(() => {
-    if (window.speechSynthesis.paused) {
-      window.speechSynthesis.resume();
-    }
-  }, []);
-
-  const stop = useCallback(() => {
+  const stop = () => {
     window.speechSynthesis.cancel();
-    setTTSState(prev => ({ ...prev, isReading: false, currentText: undefined }));
-  }, []);
-
-  // Get available system voices grouped by language
-  const getVoicesByLanguage = useCallback(() => {
-    const voicesByLang: { [key: string]: SpeechSynthesisVoice[] } = {};
-    
-    ttsState.availableVoices.forEach(voice => {
-      const lang = voice.lang.split('-')[0]; // e.g., 'en' from 'en-US'
-      if (!voicesByLang[lang]) {
-        voicesByLang[lang] = [];
-      }
-      voicesByLang[lang].push(voice);
-    });
-
-    return voicesByLang;
-  }, [ttsState.availableVoices]);
-
-  // Get recommended voice for current personality
-  const getRecommendedVoice = useCallback((): SpeechSynthesisVoice | undefined => {
-    const englishVoices = ttsState.availableVoices.filter(v => v.lang.startsWith('en'));
-    
-    switch (ttsState.voiceSettings.personality) {
-      case 'peter-griffin':
-        // Prefer male voices with lower pitch capability
-        return englishVoices.find(v => v.name.toLowerCase().includes('male')) || 
-               englishVoices.find(v => v.name.toLowerCase().includes('david')) ||
-               englishVoices[0];
-      case 'motivational':
-        // Prefer energetic-sounding voices
-        return englishVoices.find(v => v.name.toLowerCase().includes('alex')) ||
-               englishVoices.find(v => v.name.toLowerCase().includes('daniel')) ||
-               englishVoices[0];
-      case 'asmr':
-        // Prefer soft female voices
-        return englishVoices.find(v => v.name.toLowerCase().includes('female')) ||
-               englishVoices.find(v => v.name.toLowerCase().includes('samantha')) ||
-               englishVoices[0];
-      default:
-        return englishVoices[0];
-    }
-  }, [ttsState.availableVoices, ttsState.voiceSettings.personality]);
+    setTTSState(prev => ({ ...prev, isReading: false }));
+  };
 
   return {
     ttsState,
     speak,
-    speakFlashcard,
     pause,
     resume,
     stop,
-    updateVoiceSettings,
-    setVoicePersonality,
-    getVoicesByLanguage,
-    getRecommendedVoice,
-    isSupported: 'speechSynthesis' in window,
+    isSupported: typeof window !== 'undefined' && 'speechSynthesis' in window,
   };
 };

@@ -325,7 +325,7 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({ briefing, onBack }) =>
       if (briefing.audio_file) {
         play();
       } else {
-        speak(briefing.script, true);
+        speak(briefing.script);
       }
     }
   };
