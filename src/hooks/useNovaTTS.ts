@@ -4,6 +4,33 @@ import { proxyTTS, InsufficientCreditsError } from '../services/managedProxy';
 /** Single product voice. OpenAI's "nova" — natural, warm, conversational. */
 const PRODUCT_VOICE = 'nova';
 
+/**
+ * Convert an error from the proxy into a single-sentence user-visible message
+ * explaining why the high-quality voice isn't playing right now. Always returns
+ * a string — silent fallback to the browser robot voice is forbidden.
+ */
+function classifyVoiceError(err: unknown): string {
+  if (err instanceof InsufficientCreditsError) {
+    return 'Out of credits. Add a payment method to continue with the high-quality voice.';
+  }
+  if (err instanceof Error) {
+    const m = err.message.toLowerCase();
+    if (m.includes('401') || m.includes('unauthor') || m.includes('sign in')) {
+      return 'Sign in to use the high-quality voice. Using browser voice for now.';
+    }
+    if (m.includes('429') || m.includes('rate')) {
+      return 'Rate limited. Using browser voice for now — try again in a moment.';
+    }
+    if (m.includes('timeout') || m.includes('aborted')) {
+      return 'Voice service timed out. Using browser voice.';
+    }
+    if (m.includes('payment') || m.includes('402')) {
+      return 'Add a payment method to use the high-quality voice. Using browser voice for now.';
+    }
+  }
+  return 'Voice service unavailable. Using browser voice.';
+}
+
 interface NovaTTSState {
   /** True from the moment .speak() is called until audio actually starts playing. */
   isFetching: boolean;
@@ -85,6 +112,7 @@ export function useNovaTTS() {
 
       const el = audioElRef.current;
       if (!el) {
+        setState(prev => ({ ...prev, errorMessage: 'Audio playback unavailable. Using browser voice.' }));
         speakViaBrowser(text);
         return;
       }
@@ -97,21 +125,20 @@ export function useNovaTTS() {
         releaseCurrentBlob();
       };
       el.onerror = () => {
-        setState(prev => ({ ...prev, isPlaying: false }));
+        setState(prev => ({
+          ...prev,
+          isPlaying: false,
+          errorMessage: 'Audio playback failed. Using browser voice.',
+        }));
         releaseCurrentBlob();
         speakViaBrowser(text);
       };
       await el.play();
     } catch (err) {
-      // Network / auth / blob-play failures — fall back to browser speech.
-      // 402 (out of credits) is surfaced in errorMessage so the UI can
-      // disable further reads or show a top-up prompt; we still attempt
-      // the browser fallback so the user gets something.
-      const errorMessage =
-        err instanceof InsufficientCreditsError
-          ? 'Out of credits. Top up to keep reading aloud.'
-          : null;
-      setState(prev => ({ ...prev, isFetching: false, errorMessage }));
+      // Network / auth / blob-play failures — fall back to browser speech but
+      // tell the user *why* the high-quality voice isn't playing. Silent
+      // degradation to the OS robot is the worst possible UX.
+      setState(prev => ({ ...prev, isFetching: false, errorMessage: classifyVoiceError(err) }));
       speakViaBrowser(text);
     }
   }, [stop, speakViaBrowser, releaseCurrentBlob]);
