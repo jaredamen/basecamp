@@ -15,6 +15,9 @@ interface LearningContentDisplayProps {
   onDeepDive: (selection: string) => void;
   onExitDive: () => void;
   onAnalogyUpdated: (cardId: string, newExplanation: string) => void;
+  /** Re-roll the audio briefing with a fresh analogy framing while keeping
+   *  the deck unchanged. Wired to AudioPlayer's "Different analogy" button. */
+  onReframeAudio: () => void;
   onBack: () => void;
 }
 
@@ -28,6 +31,7 @@ export function LearningContentDisplay({
   onDeepDive,
   onExitDive,
   onAnalogyUpdated,
+  onReframeAudio,
 }: LearningContentDisplayProps) {
   const [viewMode, setViewMode] = useState<ViewMode>('audio');
 
@@ -84,6 +88,7 @@ export function LearningContentDisplay({
             parentContent={originalContent}
             onDeepDive={onDeepDive}
             onAnalogyUpdated={onAnalogyUpdated}
+            onReframeAudio={onReframeAudio}
             onBack={() => setViewMode('flashcards')}
           />
         ) : (

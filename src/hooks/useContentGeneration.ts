@@ -5,7 +5,7 @@ import { proxyChat, InsufficientCreditsError } from '../services/managedProxy';
 
 interface GenerationState {
   isGenerating: boolean;
-  stage: 'idle' | 'fetching' | 'analyzing' | 'flashcards' | 'audio' | 'diving' | 'complete';
+  stage: 'idle' | 'fetching' | 'analyzing' | 'flashcards' | 'audio' | 'diving' | 'reframing' | 'complete';
   progress: number;
   error?: string;
   insufficientCredits?: boolean;
@@ -340,6 +340,105 @@ export function useContentGeneration() {
     });
   }, []);
 
+  /**
+   * Re-frame the audio briefing with a fresh analogy palette while keeping
+   * the flashcard deck (and substantive content) the same. The "didn't
+   * land — give me a different parable" button at the audio-script level.
+   * Only the audioScript is replaced; the deck stays put so per-card review
+   * history and library entry are unaffected.
+   */
+  const reframeAudio = useCallback(async () => {
+    if (!isManaged && !config?.aiProvider) {
+      setState(prev => ({ ...prev, error: 'AI provider not configured' }));
+      return;
+    }
+
+    // Snapshot what we need before flipping into 'reframing'.
+    const snapshot = await new Promise<{
+      content: string;
+      cards: Flashcard[];
+      previousTitle: string;
+    } | null>(resolve => {
+      setState(prev => {
+        if (!prev.flashcards || !prev.audioScript) {
+          resolve(null);
+          return prev;
+        }
+        resolve({
+          content: prev.originalContent ?? '',
+          cards: prev.flashcards.cards,
+          previousTitle: prev.audioScript.title,
+        });
+        return {
+          ...prev,
+          isGenerating: true,
+          stage: 'reframing',
+          progress: 30,
+          error: undefined,
+        };
+      });
+    });
+    if (!snapshot) return;
+
+    try {
+      const prompt = aiService.getAudioReframePrompt(
+        snapshot.content,
+        snapshot.cards,
+        snapshot.previousTitle,
+      );
+
+      let json: string;
+      if (isManaged) {
+        json = await callManagedAI(prompt, { maxTokens: 3000, temperature: 0.85 });
+      } else {
+        const provider = config!.aiProvider!;
+        const baseURL = provider.baseURL || 'https://api.openai.com/v1';
+        const response = await fetch(`${baseURL}/chat/completions`, {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${provider.apiKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            model: provider.model,
+            messages: [{ role: 'user', content: prompt }],
+            temperature: 0.85,
+            max_tokens: 3000,
+            response_format: { type: 'json_object' },
+          }),
+        });
+        if (!response.ok) throw new Error(`Audio re-frame failed (${response.status})`);
+        const data = await response.json();
+        json = data.choices[0].message.content;
+      }
+
+      const newAudioScript = aiService.parseAudioScriptResponse(json, snapshot.cards);
+
+      setState(prev => ({
+        ...prev,
+        isGenerating: false,
+        stage: 'complete',
+        progress: 100,
+        audioScript: newAudioScript,
+      }));
+    } catch (error) {
+      console.error('Audio re-frame failed:', error);
+      setState(prev => ({
+        ...prev,
+        isGenerating: false,
+        stage: 'complete',
+        progress: 100,
+        error:
+          error instanceof InsufficientCreditsError
+            ? 'Not enough credits to re-frame the lesson.'
+            : error instanceof Error
+              ? error.message
+              : 'Audio re-frame failed',
+        insufficientCredits: error instanceof InsufficientCreditsError,
+      }));
+    }
+  }, [config, isManaged, aiService]);
+
   return {
     ...state,
     generateContent,
@@ -348,8 +447,11 @@ export function useContentGeneration() {
     updateCardAnalogy,
     deepDive,
     exitDive,
+    reframeAudio,
     /** True when we're inside a dive — UI can show a "Back to parent briefing" affordance. */
     isInDive: !!state.parentSnapshot,
+    /** True when an audio re-frame is in flight — UI can disable the trigger. */
+    isReframing: state.stage === 'reframing',
     isConfigured: isManaged || !!(config?.aiProvider && config?.voiceProvider)
   };
 }
