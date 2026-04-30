@@ -184,19 +184,34 @@ export function FlashcardDisplay({
 
               {currentCard.explanation && (
                 <div className="bg-blue-900/20 border border-blue-800/30 rounded-lg p-4 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <h4 className="text-sm font-semibold text-blue-300">Remember it like this</h4>
-                    <button
-                      onClick={handleRefreshAnalogy}
-                      disabled={refreshingAnalogy}
-                      className="text-xs text-blue-400 hover:text-blue-300 disabled:text-dark-500 disabled:cursor-not-allowed underline-offset-2 hover:underline"
-                    >
-                      {refreshingAnalogy ? 'Generating…' : 'Try a different analogy'}
-                    </button>
-                  </div>
+                  <h4 className="text-sm font-semibold text-blue-300">Remember it like this</h4>
                   <p className="text-dark-200 text-sm leading-relaxed">{currentCard.explanation}</p>
                   {analogyError && <p className="text-xs text-orange-400">{analogyError}</p>}
                 </div>
+              )}
+
+              {/* Analogy refresh — only when the user didn't nail it.
+                  Hidden when verdict === 'correct' (no need for a fresh
+                  parable when they got the answer right). Visible when they
+                  got it wrong/close, OR when they skipped recall entirely. */}
+              {currentCard.explanation && verdict?.verdict !== 'correct' && (
+                <button
+                  onClick={handleRefreshAnalogy}
+                  disabled={refreshingAnalogy}
+                  className="w-full px-4 py-3 rounded-xl bg-blue-600/15 border border-blue-500/40 text-blue-300 hover:bg-blue-600/25 disabled:bg-dark-700 disabled:text-dark-500 disabled:cursor-not-allowed font-medium transition-colors flex items-center justify-center gap-2"
+                >
+                  {refreshingAnalogy ? (
+                    <>
+                      <span className="inline-block w-4 h-4 border-2 border-blue-300 border-t-transparent rounded-full animate-spin" />
+                      Generating a fresh parable…
+                    </>
+                  ) : (
+                    <>
+                      <span>💡</span>
+                      <span>This analogy didn't land — try a different one</span>
+                    </>
+                  )}
+                </button>
               )}
 
               <div className="flex justify-end">
