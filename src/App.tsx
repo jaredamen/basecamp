@@ -52,10 +52,15 @@ function AppMain() {
     insufficientCredits,
     flashcards,
     audioScript,
+    originalContent,
     wasLoadedFromLibrary,
+    isInDive,
     generateContent,
     reset: resetGeneration,
     loadFromLibrary,
+    deepDive,
+    exitDive,
+    updateCardAnalogy,
   } = useContentGeneration();
   const { session, billing, isAuthenticated, loading: managedLoading, refreshBilling, signOut } = useManaged();
   const [showPaymentModal, setShowPaymentModal] = useState(false);
@@ -69,16 +74,24 @@ function AppMain() {
     }
   }, [refreshBilling]);
 
-  // Auto-transition to content when generation completes successfully.
-  // Also auto-saves the briefing to the library so it persists across visits.
-  // We track the last-saved id with a ref so that re-renders (e.g. from
-  // tab switches inside content) don't re-save and shuffle library order.
+  // Auto-transition based on the generation state machine. A 'diving' stage
+  // means a recursive dive is in flight — show the LoadingIndicator full
+  // screen so the user sees the wait. 'complete' lands them in the content
+  // view (post-dive AND post-initial-generation share this path).
   const lastSavedKeyRef = useRef<string | null>(null);
   useEffect(() => {
+    if (stage === 'diving') {
+      setAppState('generating');
+      return;
+    }
     if (stage === 'complete' && flashcards && audioScript) {
       setAppState('content');
       refreshBilling();
-      if (!wasLoadedFromLibrary) {
+      // Skip auto-save for dives (isInDive=true) — they're transient sub-views
+      // off a parent briefing; we don't want a half-dozen "Stoicism: dichotomy"
+      // dive entries cluttering the library yet. Once SavedBriefing carries
+      // parentId we can save them with a clear parent-link.
+      if (!wasLoadedFromLibrary && !isInDive) {
         const key = `${flashcards.id}::${audioScript.id}`;
         if (lastSavedKeyRef.current !== key) {
           briefingLibrary.save({
@@ -91,7 +104,7 @@ function AppMain() {
         }
       }
     }
-  }, [stage, flashcards, audioScript, refreshBilling, wasLoadedFromLibrary]);
+  }, [stage, flashcards, audioScript, refreshBilling, wasLoadedFromLibrary, isInDive]);
 
   const handleSetupComplete = () => {
     setAppState('input');
@@ -207,6 +220,11 @@ function AppMain() {
           <LearningContentDisplay
             flashcards={flashcards}
             audioScript={audioScript}
+            originalContent={originalContent ?? ''}
+            isInDive={isInDive}
+            onDeepDive={deepDive}
+            onExitDive={exitDive}
+            onAnalogyUpdated={updateCardAnalogy}
             onBack={handleNavigateHome}
           />
         )}

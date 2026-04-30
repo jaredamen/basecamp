@@ -6,25 +6,43 @@ import type { FlashcardSet, AudioScript } from '../services/aiPrompting';
 interface LearningContentDisplayProps {
   flashcards: FlashcardSet;
   audioScript: AudioScript;
+  /** Source text for the briefing — passed through so dives + analogy
+   *  refresh have parent context to focus from. Empty string is fine. */
+  originalContent: string;
+  /** True when the user is inside a recursive dive. Shows a "back to parent"
+   *  pill at the top so they can return without losing the parent briefing. */
+  isInDive: boolean;
+  onDeepDive: (selection: string) => void;
+  onExitDive: () => void;
+  onAnalogyUpdated: (cardId: string, newExplanation: string) => void;
   onBack: () => void;
 }
 
 type ViewMode = 'audio' | 'flashcards';
 
-/**
- * Two-mode shell — Audio briefing (default) and Study Cards. The empty
- * Overview tab is gone; both surfaces always render with the tab selector
- * pinned to the top so switching between them is one click.
- */
 export function LearningContentDisplay({
   flashcards,
   audioScript,
+  originalContent,
+  isInDive,
+  onDeepDive,
+  onExitDive,
+  onAnalogyUpdated,
 }: LearningContentDisplayProps) {
   const [viewMode, setViewMode] = useState<ViewMode>('audio');
 
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-br from-dark-900 via-dark-800 to-dark-900">
-      <div className="bg-dark-900/95 border-b border-dark-700 px-4 py-3 flex justify-center">
+      <div className="bg-dark-900/95 border-b border-dark-700 px-4 py-3 flex justify-center items-center gap-3">
+        {isInDive && (
+          <button
+            onClick={onExitDive}
+            className="text-xs px-3 py-1.5 rounded-full bg-purple-600/20 border border-purple-500/40 text-purple-300 hover:bg-purple-600/30 transition-colors"
+            aria-label="Back to parent briefing"
+          >
+            ← Back to parent
+          </button>
+        )}
         <div className="bg-dark-800/50 rounded-lg p-1 border border-dark-700 inline-flex">
           <button
             onClick={() => setViewMode('audio')}
@@ -63,11 +81,18 @@ export function LearningContentDisplay({
               interruptionPoints: audioScript.interruptionPoints,
             }}
             cards={flashcards.cards}
+            parentContent={originalContent}
+            onDeepDive={onDeepDive}
+            onAnalogyUpdated={onAnalogyUpdated}
             onBack={() => setViewMode('flashcards')}
           />
         ) : (
           <FlashcardDisplay
             flashcardSet={flashcards}
+            briefingId={flashcards.id}
+            parentContent={originalContent}
+            onDeepDive={onDeepDive}
+            onAnalogyUpdated={onAnalogyUpdated}
             onComplete={() => setViewMode('audio')}
           />
         )}

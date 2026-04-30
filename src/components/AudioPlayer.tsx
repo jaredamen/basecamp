@@ -4,6 +4,7 @@ import type { Flashcard } from '../services/aiPrompting';
 import { useAudioPlayer } from '../hooks/useAudioPlayer';
 import { useTTS } from '../hooks/useTTS';
 import { useBYOK } from '../hooks/useBYOK';
+import { useFlashcardAI } from '../hooks/useFlashcardAI';
 import { fetchVoiceAudio, InsufficientCreditsError } from '../services/voiceTTS';
 import { briefingLibrary } from '../services/briefingLibrary';
 
@@ -14,6 +15,14 @@ interface AudioPlayerProps {
    *  flashcard-flip overlays mid-listen. Pass an empty array if no deck
    *  (legacy briefings) — the audio plays without interruptions. */
   cards: Flashcard[];
+  /** Source text the briefing was built from. Used by the FlashcardOverlay
+   *  for analogy refresh + dive triggering. Empty string is fine. */
+  parentContent?: string;
+  /** Trigger a recursive dive on a topic from inside an interruption flashcard. */
+  onDeepDive?: (selection: string) => void;
+  /** Replace one card's analogy with new text (called after a successful
+   *  regeneration via useFlashcardAI). */
+  onAnalogyUpdated?: (cardId: string, newExplanation: string) => void;
   onBack: () => void;
 }
 
@@ -123,7 +132,14 @@ function classifyAudioError(err: unknown): string {
   return 'Voice service unavailable. Using browser voice.';
 }
 
-export const AudioPlayer: React.FC<AudioPlayerProps> = ({ briefing, cards, onBack }) => {
+export const AudioPlayer: React.FC<AudioPlayerProps> = ({
+  briefing,
+  cards,
+  parentContent = '',
+  onDeepDive,
+  onAnalogyUpdated,
+  onBack,
+}) => {
   const { playerState, loadBriefing, play, pause } = useAudioPlayer();
   const { ttsState, speak, stop: stopTTS } = useTTS();
   const { config, isManaged } = useBYOK();
@@ -558,8 +574,11 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({ briefing, cards, onBac
         <FlashcardOverlay
           card={pendingCard}
           revealed={cardRevealed}
+          parentContent={parentContent}
           onReveal={() => setCardRevealed(true)}
           onVerdict={handleCardVerdict}
+          onDeepDive={onDeepDive}
+          onAnalogyUpdated={onAnalogyUpdated}
         />
       )}
     </div>
@@ -569,17 +588,79 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({ briefing, cards, onBac
 interface FlashcardOverlayProps {
   card: Flashcard;
   revealed: boolean;
+  parentContent: string;
   onReveal: () => void;
   onVerdict: (verdict: 'gotIt' | 'reviewAgain') => void;
+  onDeepDive?: (selection: string) => void;
+  onAnalogyUpdated?: (cardId: string, newExplanation: string) => void;
 }
 
 /**
- * Mid-listen flashcard interrupt. Shows the question (front), waits for the
- * user to recall, reveals on tap, then captures Got It / Review Again.
- * Same mechanic as the standalone Study Cards view — one concept, three
- * surfaces (cards / audio interrupt / re-listen prioritization).
+ * Mid-listen flashcard interrupt. Shows the question (front), accepts the
+ * user's typed recall (optional), grades it via the LLM, then reveals the
+ * canonical answer + analogy. Same mechanic as the standalone Study Cards
+ * view — one concept, three surfaces (cards / audio interrupt / re-listen).
+ *
+ * On the back: "Try a different analogy" regenerates just `explanation`,
+ * "Dive deeper" triggers a recursive sub-briefing.
  */
-const FlashcardOverlay: React.FC<FlashcardOverlayProps> = ({ card, revealed, onReveal, onVerdict }) => {
+const FlashcardOverlay: React.FC<FlashcardOverlayProps> = ({
+  card,
+  revealed,
+  parentContent,
+  onReveal,
+  onVerdict,
+  onDeepDive,
+  onAnalogyUpdated,
+}) => {
+  const { gradeAnswer, regenerateAnalogy } = useFlashcardAI();
+  const [studentAnswer, setStudentAnswer] = useState('');
+  const [grading, setGrading] = useState(false);
+  const [verdict, setVerdict] = useState<{ verdict: 'correct' | 'close' | 'wrong'; feedback: string } | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
+  const [analogyError, setAnalogyError] = useState<string | null>(null);
+
+  const handleCheck = async () => {
+    if (!studentAnswer.trim() || grading) return;
+    setGrading(true);
+    try {
+      const result = await gradeAnswer(card, studentAnswer);
+      setVerdict(result);
+      window.setTimeout(onReveal, 600);
+    } catch (err) {
+      setVerdict({
+        verdict: 'close',
+        feedback: err instanceof Error ? `Couldn't grade: ${err.message}` : 'Reveal to compare.',
+      });
+      onReveal();
+    } finally {
+      setGrading(false);
+    }
+  };
+
+  const handleRefresh = async () => {
+    if (refreshing || !onAnalogyUpdated) return;
+    setRefreshing(true);
+    setAnalogyError(null);
+    try {
+      const fresh = await regenerateAnalogy(card, parentContent);
+      onAnalogyUpdated(card.id, fresh);
+    } catch (err) {
+      setAnalogyError(err instanceof Error ? err.message : 'Could not refresh analogy.');
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
+  const verdictBadge =
+    verdict?.verdict === 'correct'
+      ? { bg: 'bg-green-500/15 border-green-400/40', text: 'text-green-300', label: '✓ Correct' }
+      : verdict?.verdict === 'close'
+        ? { bg: 'bg-yellow-500/15 border-yellow-400/40', text: 'text-yellow-300', label: '~ Close' }
+        : verdict?.verdict === 'wrong'
+          ? { bg: 'bg-orange-500/15 border-orange-400/40', text: 'text-orange-300', label: '✗ Not quite' }
+          : null;
+
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-dark-900/85 backdrop-blur-md p-4"
@@ -596,20 +677,65 @@ const FlashcardOverlay: React.FC<FlashcardOverlayProps> = ({ card, revealed, onR
         <p className="text-lg font-semibold text-white leading-snug mb-5">{card.front}</p>
 
         {!revealed ? (
-          <button
-            onClick={onReveal}
-            className="w-full py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold transition-colors"
-          >
-            Show answer
-          </button>
+          <div className="space-y-3">
+            <textarea
+              value={studentAnswer}
+              onChange={(e) => setStudentAnswer(e.target.value)}
+              placeholder="Type what you think the answer is (optional)…"
+              rows={2}
+              className="w-full px-3 py-2 bg-dark-900/60 border border-dark-700 rounded-lg text-white text-sm focus:border-purple-500 focus:ring-1 focus:ring-purple-500 outline-none resize-y"
+              disabled={grading}
+            />
+            {verdictBadge && verdict && (
+              <div className={`rounded-lg border px-3 py-2 ${verdictBadge.bg}`}>
+                <div className={`text-xs font-semibold ${verdictBadge.text}`}>{verdictBadge.label}</div>
+                <p className="text-xs text-dark-200 mt-0.5">{verdict.feedback}</p>
+              </div>
+            )}
+            <div className="flex gap-2">
+              <button
+                onClick={handleCheck}
+                disabled={!studentAnswer.trim() || grading}
+                className="flex-1 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:bg-dark-700 disabled:text-dark-500 disabled:cursor-not-allowed text-white font-semibold transition-colors"
+              >
+                {grading ? 'Checking…' : 'Check my answer'}
+              </button>
+              <button
+                onClick={onReveal}
+                className="px-4 py-2.5 rounded-xl bg-dark-700 hover:bg-dark-600 text-dark-100 font-medium transition-colors"
+              >
+                Show
+              </button>
+            </div>
+          </div>
         ) : (
           <>
             <div className="rounded-xl bg-dark-700/60 border border-dark-600 p-4 space-y-3">
               <p className="text-base text-dark-100 leading-relaxed">{card.back}</p>
               {card.explanation && (
-                <p className="pt-3 border-t border-dark-700 text-sm text-dark-300 italic leading-relaxed">
-                  {card.explanation}
-                </p>
+                <div className="pt-3 border-t border-dark-700 space-y-2">
+                  <p className="text-sm text-dark-300 italic leading-relaxed">{card.explanation}</p>
+                  <div className="flex items-center justify-between pt-1">
+                    {onAnalogyUpdated && (
+                      <button
+                        onClick={handleRefresh}
+                        disabled={refreshing}
+                        className="text-xs text-blue-400 hover:text-blue-300 disabled:text-dark-500 disabled:cursor-not-allowed underline-offset-2 hover:underline"
+                      >
+                        {refreshing ? 'Generating…' : 'Try a different analogy'}
+                      </button>
+                    )}
+                    {onDeepDive && (
+                      <button
+                        onClick={() => onDeepDive(card.front)}
+                        className="text-xs text-purple-400 hover:text-purple-300 underline-offset-2 hover:underline"
+                      >
+                        🤿 Dive deeper
+                      </button>
+                    )}
+                  </div>
+                  {analogyError && <p className="text-xs text-orange-400 mt-1">{analogyError}</p>}
+                </div>
               )}
             </div>
 
