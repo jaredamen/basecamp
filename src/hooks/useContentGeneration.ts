@@ -34,10 +34,14 @@ interface GenerationInput {
   type: 'url' | 'text';
 }
 
-async function callManagedAI(prompt: string, maxTokens = 2000): Promise<string> {
+async function callManagedAI(
+  prompt: string,
+  opts: { maxTokens?: number; temperature?: number } = {},
+): Promise<string> {
+  const { maxTokens = 2000, temperature = 0.7 } = opts;
   const { result } = await proxyChat({
     messages: [{ role: 'user', content: prompt }],
-    temperature: 0.7,
+    temperature,
     max_tokens: maxTokens,
     response_format: { type: 'json_object' },
   });
@@ -84,7 +88,9 @@ export function useContentGeneration() {
 
       if (isManaged) {
         const flashcardPrompt = aiService.getFlashcardPrompt(content, input.type);
-        const flashcardJson = await callManagedAI(flashcardPrompt);
+        // Higher temperature for analogy creativity; matches the BYOK path
+        // which already overrides to 0.85 inside aiService.generateFlashcards.
+        const flashcardJson = await callManagedAI(flashcardPrompt, { temperature: 0.85 });
         flashcards = aiService.parseFlashcardResponse(flashcardJson, content, input.type);
       } else {
         flashcards = await aiService.generateFlashcards(content, input.type, config!.aiProvider!);
@@ -227,7 +233,7 @@ export function useContentGeneration() {
       let diveCards: FlashcardSet;
       if (isManaged) {
         const prompt = aiService.getDeepDiveFlashcardPrompt(trimmed, parentContext, parentCards);
-        const json = await callManagedAI(prompt, 2000);
+        const json = await callManagedAI(prompt, { maxTokens: 2000, temperature: 0.85 });
         diveCards = aiService.parseFlashcardResponse(json, parentContext, 'text');
       } else {
         // BYOK: reuse the same direct-call path generateFlashcards uses, but
@@ -261,7 +267,7 @@ export function useContentGeneration() {
       let diveAudio: AudioScript;
       if (isManaged) {
         const prompt = aiService.getDeepDiveAudioPrompt(trimmed, parentContext, diveCards.cards);
-        const json = await callManagedAI(prompt, 2000);
+        const json = await callManagedAI(prompt, { maxTokens: 2000, temperature: 0.8 });
         diveAudio = aiService.parseAudioScriptResponse(json, diveCards.cards);
       } else {
         const prompt = aiService.getDeepDiveAudioPrompt(trimmed, parentContext, diveCards.cards);
