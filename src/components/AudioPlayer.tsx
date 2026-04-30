@@ -784,31 +784,46 @@ const FlashcardOverlay: React.FC<FlashcardOverlayProps> = ({
             <div className="rounded-xl bg-dark-700/60 border border-dark-600 p-4 space-y-3">
               <p className="text-base text-dark-100 leading-relaxed">{card.back}</p>
               {card.explanation && (
-                <div className="pt-3 border-t border-dark-700 space-y-2">
+                <div className="pt-3 border-t border-dark-700">
                   <p className="text-sm text-dark-300 italic leading-relaxed">{card.explanation}</p>
-                  <div className="flex items-center justify-between pt-1">
-                    {onAnalogyUpdated && (
-                      <button
-                        onClick={handleRefresh}
-                        disabled={refreshing}
-                        className="text-xs text-blue-400 hover:text-blue-300 disabled:text-dark-500 disabled:cursor-not-allowed underline-offset-2 hover:underline"
-                      >
-                        {refreshing ? 'Generating…' : 'Try a different analogy'}
-                      </button>
-                    )}
-                    {onDeepDive && (
-                      <button
-                        onClick={() => onDeepDive(card.front)}
-                        className="text-xs text-purple-400 hover:text-purple-300 underline-offset-2 hover:underline"
-                      >
-                        🤿 Dive deeper
-                      </button>
-                    )}
-                  </div>
-                  {analogyError && <p className="text-xs text-orange-400 mt-1">{analogyError}</p>}
+                  {analogyError && <p className="text-xs text-orange-400 mt-2">{analogyError}</p>}
                 </div>
               )}
             </div>
+
+            {/* Analogy refresh — only when the user didn't nail it. Hidden
+                on verdict === 'correct'. Visible on wrong/close, OR when
+                they skipped recall (verdict === null). */}
+            {card.explanation && onAnalogyUpdated && verdict?.verdict !== 'correct' && (
+              <button
+                onClick={handleRefresh}
+                disabled={refreshing}
+                className="w-full mt-4 px-4 py-3 rounded-xl bg-blue-600/15 border border-blue-500/40 text-blue-300 hover:bg-blue-600/25 disabled:bg-dark-700 disabled:text-dark-500 disabled:cursor-not-allowed font-medium transition-colors flex items-center justify-center gap-2"
+              >
+                {refreshing ? (
+                  <>
+                    <span className="inline-block w-4 h-4 border-2 border-blue-300 border-t-transparent rounded-full animate-spin" />
+                    Generating a fresh parable…
+                  </>
+                ) : (
+                  <>
+                    <span>💡</span>
+                    <span>This analogy didn't land — try a different one</span>
+                  </>
+                )}
+              </button>
+            )}
+
+            {onDeepDive && (
+              <div className="flex justify-end mt-3">
+                <button
+                  onClick={() => onDeepDive(card.front)}
+                  className="text-xs text-purple-400 hover:text-purple-300 underline-offset-2 hover:underline"
+                >
+                  🤿 Dive deeper
+                </button>
+              </div>
+            )}
 
             <div className="flex gap-3 mt-5">
               <button
