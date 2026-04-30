@@ -614,11 +614,33 @@ const FlashcardOverlay: React.FC<FlashcardOverlayProps> = ({
   onAnalogyUpdated,
 }) => {
   const { gradeAnswer, regenerateAnalogy } = useFlashcardAI();
+  const hasMCQ = !!(card.choices && card.choices.length === 4 && typeof card.correctIndex === 'number');
+
+  // Default to MCQ mode when the card has choices — tapping is faster than
+  // typing while listening hands-free. User can switch to type if they
+  // want fuller recall practice.
+  const [mode, setMode] = useState<'mcq' | 'type'>(hasMCQ ? 'mcq' : 'type');
+  const [mcqSelection, setMcqSelection] = useState<number | null>(null);
   const [studentAnswer, setStudentAnswer] = useState('');
   const [grading, setGrading] = useState(false);
   const [verdict, setVerdict] = useState<{ verdict: 'correct' | 'close' | 'wrong'; feedback: string } | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [analogyError, setAnalogyError] = useState<string | null>(null);
+
+  const handleMCQTap = (idx: number) => {
+    if (mcqSelection !== null || !hasMCQ) return;
+    setMcqSelection(idx);
+    const isCorrect = idx === card.correctIndex;
+    setVerdict({
+      verdict: isCorrect ? 'correct' : 'wrong',
+      feedback: isCorrect
+        ? 'Right.'
+        : `Not quite — the correct answer was ${String.fromCharCode(65 + (card.correctIndex ?? 0))}.`,
+    });
+    // Reveal the canonical answer + analogy after a brief beat so the
+    // listener has time to register the verdict.
+    window.setTimeout(onReveal, isCorrect ? 700 : 1500);
+  };
 
   const handleCheck = async () => {
     if (!studentAnswer.trim() || grading) return;
@@ -677,37 +699,86 @@ const FlashcardOverlay: React.FC<FlashcardOverlayProps> = ({
         <p className="text-lg font-semibold text-white leading-snug mb-5">{card.front}</p>
 
         {!revealed ? (
-          <div className="space-y-3">
-            <textarea
-              value={studentAnswer}
-              onChange={(e) => setStudentAnswer(e.target.value)}
-              placeholder="Type what you think the answer is (optional)…"
-              rows={2}
-              className="w-full px-3 py-2 bg-dark-900/60 border border-dark-700 rounded-lg text-white text-sm focus:border-purple-500 focus:ring-1 focus:ring-purple-500 outline-none resize-y"
-              disabled={grading}
-            />
-            {verdictBadge && verdict && (
-              <div className={`rounded-lg border px-3 py-2 ${verdictBadge.bg}`}>
-                <div className={`text-xs font-semibold ${verdictBadge.text}`}>{verdictBadge.label}</div>
-                <p className="text-xs text-dark-200 mt-0.5">{verdict.feedback}</p>
-              </div>
-            )}
-            <div className="flex gap-2">
-              <button
-                onClick={handleCheck}
-                disabled={!studentAnswer.trim() || grading}
-                className="flex-1 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:bg-dark-700 disabled:text-dark-500 disabled:cursor-not-allowed text-white font-semibold transition-colors"
-              >
-                {grading ? 'Checking…' : 'Check my answer'}
-              </button>
-              <button
-                onClick={onReveal}
-                className="px-4 py-2.5 rounded-xl bg-dark-700 hover:bg-dark-600 text-dark-100 font-medium transition-colors"
-              >
-                Show
-              </button>
+          mode === 'mcq' && hasMCQ && card.choices ? (
+            // ── MCQ mode (audio-first interaction: tap a choice) ───────
+            <div className="space-y-2">
+              {card.choices.map((choice, idx) => {
+                const isPicked = mcqSelection === idx;
+                const isCorrectKey = idx === card.correctIndex;
+                const answered = mcqSelection !== null;
+                let cls = 'border-dark-600 bg-dark-700 text-dark-100 hover:border-purple-500/40 hover:bg-purple-500/10';
+                if (answered) {
+                  if (isCorrectKey) cls = 'border-green-400/60 bg-green-500/15 text-white';
+                  else if (isPicked) cls = 'border-orange-400/60 bg-orange-500/15 text-white';
+                  else cls = 'border-dark-700 bg-dark-700/60 text-dark-400 opacity-60';
+                }
+                return (
+                  <button
+                    key={idx}
+                    onClick={() => handleMCQTap(idx)}
+                    disabled={answered}
+                    className={`w-full text-left px-4 py-3 rounded-xl border-2 text-sm flex items-center gap-3 transition-all ${cls}`}
+                  >
+                    <span className="w-7 h-7 rounded-lg bg-dark-600 text-dark-200 font-bold text-xs flex items-center justify-center flex-shrink-0">
+                      {String.fromCharCode(65 + idx)}
+                    </span>
+                    <span className="flex-1">{choice}</span>
+                    {answered && isCorrectKey && <span className="text-green-400 font-bold">✓</span>}
+                    {answered && isPicked && !isCorrectKey && <span className="text-orange-400 font-bold">✗</span>}
+                  </button>
+                );
+              })}
+              {mcqSelection === null && (
+                <button
+                  onClick={() => setMode('type')}
+                  className="w-full text-center text-xs text-blue-400 hover:text-blue-300 underline-offset-2 hover:underline pt-1"
+                >
+                  Or type your full answer
+                </button>
+              )}
             </div>
-          </div>
+          ) : (
+            // ── Type-the-answer mode ───────────────────────────────────
+            <div className="space-y-3">
+              <textarea
+                value={studentAnswer}
+                onChange={(e) => setStudentAnswer(e.target.value)}
+                placeholder="Type what you think the answer is (optional)…"
+                rows={2}
+                className="w-full px-3 py-2 bg-dark-900/60 border border-dark-700 rounded-lg text-white text-sm focus:border-purple-500 focus:ring-1 focus:ring-purple-500 outline-none resize-y"
+                disabled={grading}
+              />
+              {verdictBadge && verdict && (
+                <div className={`rounded-lg border px-3 py-2 ${verdictBadge.bg}`}>
+                  <div className={`text-xs font-semibold ${verdictBadge.text}`}>{verdictBadge.label}</div>
+                  <p className="text-xs text-dark-200 mt-0.5">{verdict.feedback}</p>
+                </div>
+              )}
+              <div className="flex gap-2">
+                <button
+                  onClick={handleCheck}
+                  disabled={!studentAnswer.trim() || grading}
+                  className="flex-1 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:bg-dark-700 disabled:text-dark-500 disabled:cursor-not-allowed text-white font-semibold transition-colors"
+                >
+                  {grading ? 'Checking…' : 'Check my answer'}
+                </button>
+                <button
+                  onClick={onReveal}
+                  className="px-4 py-2.5 rounded-xl bg-dark-700 hover:bg-dark-600 text-dark-100 font-medium transition-colors"
+                >
+                  Show
+                </button>
+              </div>
+              {hasMCQ && (
+                <button
+                  onClick={() => setMode('mcq')}
+                  className="w-full text-center text-xs text-blue-400 hover:text-blue-300 underline-offset-2 hover:underline"
+                >
+                  Or pick from multiple choice
+                </button>
+              )}
+            </div>
+          )
         ) : (
           <>
             <div className="rounded-xl bg-dark-700/60 border border-dark-600 p-4 space-y-3">
