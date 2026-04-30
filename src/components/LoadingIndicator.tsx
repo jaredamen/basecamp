@@ -1,5 +1,5 @@
 interface LoadingIndicatorProps {
-  stage: 'idle' | 'fetching' | 'analyzing' | 'flashcards' | 'audio' | 'diving' | 'complete';
+  stage: 'idle' | 'fetching' | 'analyzing' | 'flashcards' | 'audio' | 'diving' | 'reframing' | 'complete';
   progress: number;
   error?: string;
   insufficientCredits?: boolean;
@@ -14,6 +14,7 @@ export function LoadingIndicator({ stage, progress, error, insufficientCredits, 
     { id: 'flashcards', label: 'Creating Flashcards', emoji: '🧠', description: 'Generating learning cards with AI' },
     { id: 'audio', label: 'Preparing Audio', emoji: '🎙️', description: 'Creating expert narrative script' },
     { id: 'diving', label: 'Diving Deeper', emoji: '🤿', description: 'Generating a focused mini-briefing on your selection' },
+    { id: 'reframing', label: 'Re-framing the Lesson', emoji: '💡', description: 'Same content, fresh analogy — pulling a different parable' },
     { id: 'complete', label: 'Ready!', emoji: '🎉', description: 'Learning content generated successfully' }
   ];
 

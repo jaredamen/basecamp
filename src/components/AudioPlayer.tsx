@@ -23,6 +23,9 @@ interface AudioPlayerProps {
   /** Replace one card's analogy with new text (called after a successful
    *  regeneration via useFlashcardAI). */
   onAnalogyUpdated?: (cardId: string, newExplanation: string) => void;
+  /** Re-roll the entire audio script with a fresh analogy palette. Deck
+   *  stays the same; only the narration's framing is regenerated. */
+  onReframeAudio?: () => void;
   onBack: () => void;
 }
 
@@ -138,6 +141,7 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
   parentContent = '',
   onDeepDive,
   onAnalogyUpdated,
+  onReframeAudio,
   onBack,
 }) => {
   const { playerState, loadBriefing, play, pause } = useAudioPlayer();
@@ -450,7 +454,7 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
     <div className="flex-1 flex flex-col">
       {/* Header */}
       <div className="bg-dark-800 px-4 py-3 border-b border-dark-700">
-        <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center justify-between mb-3 gap-2">
           <button
             onClick={onBack}
             className="flex items-center text-blue-400 hover:text-blue-300 transition-colors"
@@ -458,12 +462,24 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
             <ArrowBackIcon className="w-5 h-5 mr-1" />
             <span className="text-sm font-medium">Back</span>
           </button>
-          <button
-            onClick={() => setShowScript(!showScript)}
-            className="text-xs text-dark-400 hover:text-dark-200 px-2 py-1 rounded border border-dark-600 hover:border-dark-500"
-          >
-            {showScript ? 'Hide Script' : 'Show Script'}
-          </button>
+          <div className="flex items-center gap-2">
+            {onReframeAudio && (
+              <button
+                onClick={onReframeAudio}
+                title="Re-frame this lesson with a different analogy"
+                className="text-xs text-blue-300 hover:text-blue-200 px-2.5 py-1 rounded border border-blue-500/40 hover:border-blue-400/60 hover:bg-blue-500/10 transition-colors flex items-center gap-1"
+              >
+                <span>💡</span>
+                <span>Different analogy</span>
+              </button>
+            )}
+            <button
+              onClick={() => setShowScript(!showScript)}
+              className="text-xs text-dark-400 hover:text-dark-200 px-2 py-1 rounded border border-dark-600 hover:border-dark-500"
+            >
+              {showScript ? 'Hide Script' : 'Show Script'}
+            </button>
+          </div>
         </div>
 
         <h2 className="text-lg font-semibold text-dark-100 mb-1">

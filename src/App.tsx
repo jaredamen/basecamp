@@ -61,6 +61,7 @@ function AppMain() {
     deepDive,
     exitDive,
     updateCardAnalogy,
+    reframeAudio,
   } = useContentGeneration();
   const { session, billing, isAuthenticated, loading: managedLoading, refreshBilling, signOut } = useManaged();
   const [showPaymentModal, setShowPaymentModal] = useState(false);
@@ -80,7 +81,7 @@ function AppMain() {
   // view (post-dive AND post-initial-generation share this path).
   const lastSavedKeyRef = useRef<string | null>(null);
   useEffect(() => {
-    if (stage === 'diving') {
+    if (stage === 'diving' || stage === 'reframing') {
       setAppState('generating');
       return;
     }
@@ -225,6 +226,7 @@ function AppMain() {
             onDeepDive={deepDive}
             onExitDive={exitDive}
             onAnalogyUpdated={updateCardAnalogy}
+            onReframeAudio={reframeAudio}
             onBack={handleNavigateHome}
           />
         )}
