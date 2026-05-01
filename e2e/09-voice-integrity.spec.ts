@@ -133,7 +133,8 @@ test.describe('Voice integrity', () => {
     // --- Mock chat (flashcards then audio script) ---
     await page.route('**/api/proxy/chat', (route) => {
       chatCallCount += 1;
-      const body = chatCallCount === 1 ? MOCK_FLASHCARD_RESPONSE : MOCK_AUDIO_RESPONSE;
+      // Audio-first pipeline: first chat call = audio, second = flashcards.
+      const body = chatCallCount === 1 ? MOCK_AUDIO_RESPONSE : MOCK_FLASHCARD_RESPONSE;
       return route.fulfill({
         status: 200,
         contentType: 'application/json',

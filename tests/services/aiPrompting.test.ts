@@ -20,7 +20,7 @@ describe('parseFlashcardResponse', () => {
       metadata: { difficulty: 'beginner', estimatedTime: 5, topics: ['philosophy'] }
     });
 
-    const result = service.parseFlashcardResponse(json, 'test content', 'text');
+    const { flashcards: result } = service.parseFlashcardResponse(json, 'test content', 'text');
     expect(result.cards).toHaveLength(2);
     expect(result.cards[0].front).toBe('What is Stoicism?');
     expect(result.cards[0].back).toBe('A philosophy of personal virtue and wisdom');
@@ -37,7 +37,7 @@ describe('parseFlashcardResponse', () => {
       ],
     });
 
-    const result = service.parseFlashcardResponse(json, 'test', 'text');
+    const { flashcards: result } = service.parseFlashcardResponse(json, 'test', 'text');
     expect(result.cards).toHaveLength(2);
     expect(result.cards[0].front).toBe('What is anime?');
   });
@@ -51,7 +51,7 @@ describe('parseFlashcardResponse', () => {
       ],
     });
 
-    const result = service.parseFlashcardResponse(json, 'test', 'text');
+    const { flashcards: result } = service.parseFlashcardResponse(json, 'test', 'text');
     expect(result.cards).toHaveLength(2);
     expect(result.cards[0].front).toBe('What is React?');
     expect(result.cards[0].back).toBe('A JavaScript library for building UIs');
@@ -65,7 +65,7 @@ describe('parseFlashcardResponse', () => {
       ],
     });
 
-    const result = service.parseFlashcardResponse(json, 'test', 'text');
+    const { flashcards: result } = service.parseFlashcardResponse(json, 'test', 'text');
     expect(result.cards).toHaveLength(1);
     expect(result.cards[0].front).toBe('Shorthand?');
     expect(result.cards[0].back).toBe('Yes it works');
@@ -82,7 +82,7 @@ describe('parseFlashcardResponse', () => {
       cards: [{ front: 'Q', back: 'A' }],
     });
 
-    const result = service.parseFlashcardResponse(json, 'test', 'text');
+    const { flashcards: result } = service.parseFlashcardResponse(json, 'test', 'text');
     expect(result.title).toBe('Flashcard Set');
     expect(result.metadata.difficulty).toBe('intermediate');
     expect(result.metadata.estimatedTime).toBe(10);
@@ -97,7 +97,7 @@ describe('parseFlashcardResponse', () => {
       cards: [{ front: 'Q', back: 'A' }],
     });
 
-    const result = service.parseFlashcardResponse(json, 'test', 'text');
+    const { flashcards: result } = service.parseFlashcardResponse(json, 'test', 'text');
     expect(result.cards).toHaveLength(1);
   });
 
@@ -109,7 +109,7 @@ describe('parseFlashcardResponse', () => {
       ],
     });
 
-    const result = service.parseFlashcardResponse(json, 'test', 'text');
+    const { flashcards: result } = service.parseFlashcardResponse(json, 'test', 'text');
     expect(result.cards[0].id).toBeTruthy();
     expect(result.cards[1].id).toBeTruthy();
     expect(result.cards[0].id).not.toBe(result.cards[1].id);

@@ -132,10 +132,12 @@ test.describe('Golden Path: Full generation flow', () => {
     // Chat proxy: first call returns flashcards, second returns audio script
     await page.route('**/api/proxy/chat', (route) => {
       chatCallCount++;
+      // Audio-first pipeline: first chat call generates the audio briefing,
+      // second generates flashcards downstream from that audio.
       const response =
         chatCallCount === 1
-          ? MOCK_FLASHCARD_RESPONSE
-          : MOCK_AUDIO_RESPONSE;
+          ? MOCK_AUDIO_RESPONSE
+          : MOCK_FLASHCARD_RESPONSE;
       return route.fulfill({
         status: 200,
         contentType: 'application/json',
