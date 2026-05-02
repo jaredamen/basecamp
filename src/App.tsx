@@ -30,7 +30,7 @@ const isDevDemoAudio = (): boolean => {
 function App() {
   if (isDevDemoAudio()) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-dark-900 via-dark-800 to-dark-900 flex flex-col">
+      <div className="min-h-screen bg-gradient-to-br from-solar-900 via-solar-800 to-solar-900 flex flex-col">
         <AudioPlayer
           briefing={DEMO_PAUSE_AND_QUIZ_BRIEFING}
           cards={DEMO_FLASHCARDS}
@@ -180,7 +180,7 @@ function AppMain() {
   const hasContent = !!(flashcards && audioScript);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-dark-900 via-dark-800 to-dark-900">
+    <div className="min-h-screen bg-gradient-to-br from-solar-900 via-solar-800 to-solar-900">
       {/* Persistent header — only for authenticated managed users */}
       {showHeader && (
         <AppHeader
