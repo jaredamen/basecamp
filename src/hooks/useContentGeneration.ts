@@ -36,6 +36,11 @@ interface GenerationState {
    *  where the user left off. AudioPlayer reads it via the
    *  `initialSectionIndex` prop and clears it after consuming. */
   audioStartSectionIndex?: number;
+  /** The term the user clicked to trigger the current dive. Surfaced to
+   *  the dive-loading sheet so it can show "Diving into 'X'…" inline
+   *  instead of a generic loading spinner. Cleared on dive completion
+   *  (stage='complete') and on exitDive. */
+  diveSelection?: string;
 }
 
 interface GenerationInput {
@@ -261,6 +266,9 @@ export function useContentGeneration() {
         parentSnapshot,
         // The dive itself starts at section 0 — it's a fresh briefing.
         audioStartSectionIndex: 0,
+        // Surface the selection so the dive sheet can show
+        // "Diving into 'X'…" inline while gen is in flight.
+        diveSelection: trimmed,
         error: undefined,
       };
     });
@@ -356,6 +364,8 @@ export function useContentGeneration() {
         // The dive replaces originalContent with the focused selection so
         // a further dive uses the dive's framing as its own parent context.
         originalContent: `Focused dive on: ${trimmed}\n\nParent context (truncated): ${parentContext.slice(0, 4000)}`,
+        // Generation done — clear the loading-state label.
+        diveSelection: undefined,
       }));
     } catch (error) {
       console.error('Deep dive failed:', error);
@@ -369,6 +379,7 @@ export function useContentGeneration() {
         audioScript: prev.parentSnapshot?.audioScript ?? prev.audioScript,
         originalContent: prev.parentSnapshot?.originalContent ?? prev.originalContent,
         parentSnapshot: undefined,
+        diveSelection: undefined,
         error:
           error instanceof InsufficientCreditsError
             ? 'Not enough credits for the deep dive.'
@@ -392,6 +403,7 @@ export function useContentGeneration() {
         audioScript: prev.parentSnapshot.audioScript,
         originalContent: prev.parentSnapshot.originalContent,
         parentSnapshot: undefined,
+        diveSelection: undefined,
         // AudioPlayer reads this on its briefing-changed effect, restoring
         // the section the user was on. Cleared after consumption (see
         // clearAudioStartSection below).
