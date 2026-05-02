@@ -25,23 +25,23 @@ export function ManagedSetupFlow({ onComplete, onBack }: ManagedSetupFlowProps) 
     return (
       <div className="min-h-screen bg-gradient-to-br from-dark-900 via-dark-800 to-dark-900 flex flex-col justify-center px-6">
         <div className="max-w-lg mx-auto text-center space-y-8">
-          <h1 className="text-3xl font-bold text-white">
+          <h1 className="text-3xl font-bold text-solar-100">
             Welcome, {session?.name || 'there'}!
           </h1>
-          <p className="text-lg text-dark-300">
+          <p className="text-lg text-solar-400">
             You're all set. Start learning — your first few generations are free.
           </p>
 
           <button
             onClick={onComplete}
-            className="px-8 py-3 bg-gradient-to-r from-green-600 to-blue-600 text-white rounded-lg font-semibold hover:from-green-700 hover:to-blue-700 transform hover:scale-105 transition-all shadow-lg"
+            className="px-8 py-3 bg-gradient-to-r from-solar-gold to-solar-amber text-solar-100 rounded-lg font-semibold hover:from-solar-amber hover:to-solar-ember transform hover:scale-105 transition-all shadow-lg"
           >
             Start Learning
           </button>
 
           <button
             onClick={signOut}
-            className="block mx-auto text-dark-500 hover:text-dark-400 transition-colors text-xs"
+            className="block mx-auto text-solar-500 hover:text-solar-500 transition-colors text-xs"
           >
             Sign out
           </button>
@@ -54,10 +54,10 @@ export function ManagedSetupFlow({ onComplete, onBack }: ManagedSetupFlowProps) 
   return (
     <div className="min-h-screen bg-gradient-to-br from-dark-900 via-dark-800 to-dark-900 flex flex-col justify-center px-6">
       <div className="max-w-lg mx-auto text-center space-y-8">
-        <h1 className="text-3xl font-bold text-white">
+        <h1 className="text-3xl font-bold text-solar-100">
           Quick Setup
         </h1>
-        <p className="text-lg text-dark-300">
+        <p className="text-lg text-solar-400">
           Sign in to get started. Your first few lessons are free — no credit card needed.
         </p>
 
@@ -77,15 +77,15 @@ export function ManagedSetupFlow({ onComplete, onBack }: ManagedSetupFlowProps) 
           </button>
         </div>
 
-        <div className="bg-dark-800/30 rounded-lg p-4 border border-dark-700 max-w-sm mx-auto">
-          <p className="text-sm text-dark-300">
-            No credit card required to start. You only pay for what you use — about <strong className="text-white">$0.10 per lesson</strong>.
+        <div className="bg-solar-800/30 rounded-lg p-4 border border-solar-gold/15 max-w-sm mx-auto">
+          <p className="text-sm text-solar-400">
+            No credit card required to start. You only pay for what you use — about <strong className="text-solar-100">$0.10 per lesson</strong>.
           </p>
         </div>
 
         <button
           onClick={onBack}
-          className="text-dark-400 hover:text-dark-300 transition-colors text-sm"
+          className="text-solar-500 hover:text-solar-400 transition-colors text-sm"
         >
           Back to setup options
         </button>
@@ -101,7 +101,7 @@ export function ManagedSetupFlow({ onComplete, onBack }: ManagedSetupFlowProps) 
               });
               refreshSession();
             }}
-            className="block mx-auto mt-4 text-xs text-dark-500 hover:text-dark-400 transition-colors font-mono"
+            className="block mx-auto mt-4 text-xs text-solar-500 hover:text-solar-500 transition-colors font-mono"
           >
             [DEV] Skip OAuth
           </button>

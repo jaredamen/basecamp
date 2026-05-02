@@ -57,7 +57,7 @@ export function DiveSheet({ onClose, children }: DiveSheetProps) {
           immediately legible. */}
       <div
         ref={cardRef}
-        className={`absolute inset-x-0 bottom-0 top-12 bg-dark-900 border-t border-dark-700 rounded-t-2xl shadow-2xl overflow-hidden flex flex-col transform transition-transform duration-300 ease-out ${
+        className={`absolute inset-x-0 bottom-0 top-12 glass-strong rounded-t-2xl overflow-hidden flex flex-col transform transition-transform duration-300 ease-out ${
           open ? 'translate-y-0' : 'translate-y-full'
         }`}
       >

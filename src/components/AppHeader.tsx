@@ -32,16 +32,18 @@ export function AppHeader({
 
   const tabClass = (active: boolean) =>
     `px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
-      active ? 'bg-dark-700 text-white' : 'text-dark-300 hover:text-white hover:bg-dark-800'
+      active
+        ? 'bg-solar-700 text-solar-100'
+        : 'text-solar-400 hover:text-solar-100 hover:bg-solar-800/60'
     }`;
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-50 bg-dark-900/95 backdrop-blur-sm border-b border-dark-700">
+    <header className="fixed top-0 left-0 right-0 z-50 glass border-b border-solar-gold/15">
       <div className="max-w-6xl mx-auto px-4 h-14 flex items-center justify-between">
         <div className="flex items-center space-x-6">
           <button
             onClick={onNavigateHome}
-            className="text-lg font-bold text-white hover:text-blue-400 transition-colors"
+            className="text-lg font-bold text-solar-100 hover:text-solar-gold transition-colors"
           >
             Basecamp
           </button>
@@ -58,7 +60,7 @@ export function AppHeader({
             <button onClick={onNavigateLibrary} className={tabClass(currentView === 'library')}>
               Library
               {libraryCount > 0 && (
-                <span className="ml-1.5 inline-flex items-center justify-center text-xs bg-blue-600/30 text-blue-200 px-1.5 py-0.5 rounded-full">
+                <span className="ml-1.5 inline-flex items-center justify-center text-xs bg-solar-gold/15 text-solar-gold font-mono px-1.5 py-0.5 rounded-full">
                   {libraryCount}
                 </span>
               )}
@@ -68,31 +70,31 @@ export function AppHeader({
 
         <div className="flex items-center space-x-4">
           {hasPaymentMethod ? (
-            <span className="text-sm text-dark-400">
-              Usage: <span className="text-white font-medium">${usageDollars}</span>
+            <span className="text-sm text-solar-400">
+              Usage: <span className="text-solar-100 font-mono">${usageDollars}</span>
             </span>
           ) : freeRemainingCents > 0 ? (
-            <span className="text-sm text-dark-400">
-              Free: <span className="text-green-400 font-medium">${freeDollars} left</span>
+            <span className="text-sm text-solar-400">
+              Free: <span className="text-solar-gold font-mono">${freeDollars} left</span>
             </span>
           ) : (
             <button
               onClick={onAddPaymentMethod}
-              className="text-sm font-medium text-blue-400 hover:text-blue-300 transition-colors"
+              className="text-sm font-medium text-solar-gold hover:text-solar-amber transition-colors"
             >
               Add payment method
             </button>
           )}
 
           {userName && (
-            <span className="hidden sm:inline text-sm text-dark-400">
+            <span className="hidden sm:inline text-sm text-solar-400">
               {userName}
             </span>
           )}
 
           <button
             onClick={onSignOut}
-            className="text-xs text-dark-500 hover:text-dark-300 transition-colors"
+            className="text-xs text-solar-500 hover:text-solar-100 transition-colors"
           >
             Sign out
           </button>
