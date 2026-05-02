@@ -1,6 +1,7 @@
 import { useCallback } from 'react';
 import { AIPromptingService, type Flashcard } from '../services/aiPrompting';
 import { proxyChat } from '../services/managedProxy';
+import { loadProfile } from '../services/userProfile';
 
 /**
  * Two LLM-backed actions on a single flashcard, both routed through the
@@ -40,7 +41,7 @@ export function useFlashcardAI() {
     card: Flashcard,
     parentContext: string,
   ): Promise<string> => {
-    const prompt = aiService.getAnalogyRefreshPrompt(card, parentContext);
+    const prompt = aiService.getAnalogyRefreshPrompt(card, parentContext, loadProfile());
     const json = await callAI(prompt, 400);
     return aiService.parseAnalogyResponse(json);
   }, [aiService, callAI]);

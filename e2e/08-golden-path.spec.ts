@@ -158,15 +158,18 @@ test.describe('Golden Path: Full generation flow', () => {
     // === STEP 1: Set up as authenticated managed user ===
     await page.goto('/');
 
-    // Set localStorage to simulate managed path already selected
+    // Inject a synthetic user profile so onboarding is skipped — test
+    // lands directly at the topic-input step. (Auth itself is handled
+    // by the /api/auth/me mock above.)
     await page.evaluate(() => {
       localStorage.setItem(
-        'basecamp-byok-config',
+        'basecamp-user-profile',
         JSON.stringify({
-          version: '2.0.0',
-          setupPath: 'managed',
-          aiProvider: null,
-          voiceProvider: null,
+          name: 'Tester',
+          profession: 'engineer',
+          expertise: 'distributed systems',
+          intent: 'exploring stoicism',
+          completedAt: new Date().toISOString(),
         })
       );
     });

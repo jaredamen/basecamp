@@ -1,10 +1,13 @@
 import { useState, useCallback } from 'react';
 import { AIPromptingService, type FlashcardSet, type AudioScript, type Flashcard } from '../services/aiPrompting';
 import { proxyChat, InsufficientCreditsError } from '../services/managedProxy';
+import { loadProfile } from '../services/userProfile';
+
+export type GenerationStage = 'idle' | 'fetching' | 'analyzing' | 'flashcards' | 'audio' | 'diving' | 'reframing' | 'complete';
 
 interface GenerationState {
   isGenerating: boolean;
-  stage: 'idle' | 'fetching' | 'analyzing' | 'flashcards' | 'audio' | 'diving' | 'reframing' | 'complete';
+  stage: GenerationStage;
   progress: number;
   error?: string;
   insufficientCredits?: boolean;
@@ -96,7 +99,8 @@ export function useContentGeneration() {
       //    leads, substance follows, the listener walks away knowing the
       //    actual content of the source.
       setState(prev => ({ ...prev, stage: 'audio', progress: 35 }));
-      const audioPrompt = aiService.getAudioScriptPrompt(content);
+      const userProfile = loadProfile();
+      const audioPrompt = aiService.getAudioScriptPrompt(content, userProfile);
       const audioJson = await callManagedAI(audioPrompt, { temperature: 0.8, maxTokens: 3000 });
       const audioScriptBase: AudioScript = aiService.parseAudioScriptResponse(audioJson);
 
@@ -109,7 +113,7 @@ export function useContentGeneration() {
       //    afterSectionIndex) since cards know which audio section they
       //    came from.
       setState(prev => ({ ...prev, stage: 'flashcards', progress: 80 }));
-      const flashcardPrompt = aiService.getFlashcardPrompt(content, input.type, audioScriptBase);
+      const flashcardPrompt = aiService.getFlashcardPrompt(content, input.type, audioScriptBase, userProfile);
       const flashcardJson = await callManagedAI(flashcardPrompt, { temperature: 0.85 });
       const { flashcards, interruptionPoints } = aiService.parseFlashcardResponse(
         flashcardJson,
@@ -258,8 +262,10 @@ export function useContentGeneration() {
       // Audio-first dive: same order as the main path. Audio first, then
       // cards-from-audio (which also picks the dive's interruption points).
 
+      const userProfile = loadProfile();
+
       // Step 1: dive AUDIO
-      const audioPrompt = aiService.getDeepDiveAudioPrompt(trimmed, parentContext);
+      const audioPrompt = aiService.getDeepDiveAudioPrompt(trimmed, parentContext, userProfile);
       const audioJson = await callManagedAI(audioPrompt, { maxTokens: 2000, temperature: 0.8 });
       const diveAudioBase: AudioScript = aiService.parseAudioScriptResponse(audioJson);
 
@@ -267,7 +273,7 @@ export function useContentGeneration() {
 
       // Step 2: dive CARDS (downstream of dive audio; also pick interruption
       // points referencing the dive's sections).
-      const cardsPrompt = aiService.getDeepDiveFlashcardPrompt(trimmed, parentContext, parentCards, diveAudioBase);
+      const cardsPrompt = aiService.getDeepDiveFlashcardPrompt(trimmed, parentContext, parentCards, diveAudioBase, userProfile);
       const cardsJson = await callManagedAI(cardsPrompt, { maxTokens: 2000, temperature: 0.85 });
       const { flashcards: diveCards, interruptionPoints: diveInterruptionPoints } = aiService.parseFlashcardResponse(
         cardsJson,
@@ -385,6 +391,7 @@ export function useContentGeneration() {
         snapshot.content,
         snapshot.cards,
         snapshot.previousTitle,
+        loadProfile(),
       );
 
       const json = await callManagedAI(prompt, { maxTokens: 3000, temperature: 0.85 });
