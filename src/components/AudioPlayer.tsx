@@ -26,6 +26,15 @@ interface AudioPlayerProps {
    *  the caller can clear it. Without this clearance, subsequent re-renders
    *  would keep snapping playback back to the saved index. */
   onInitialSectionConsumed?: () => void;
+  /** When true, the player is rendered as a frozen background layer behind
+   *  a dive sheet: pauses any active audio, hides the FlashcardOverlay, and
+   *  becomes non-interactive. SectionIndex state is preserved across the
+   *  transition so the player resumes in place when the sheet pops. */
+  inactive?: boolean;
+  /** Surfaces a small "🎵 Re-framing audio…" banner inline so the user
+   *  knows the briefing is being regenerated without a full-screen
+   *  takeover. Used by the parent's "Different analogy" trigger. */
+  isReframing?: boolean;
   /** Trigger a recursive dive. AudioPlayer passes the section the user was
    *  on, so the parent can store it for resume on exit. */
   onDeepDive?: (selection: string, currentSectionIndex?: number) => void;
@@ -150,6 +159,8 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
   parentContent = '',
   initialSectionIndex,
   onInitialSectionConsumed,
+  inactive = false,
+  isReframing = false,
   onDeepDive,
   onAnalogyUpdated,
   onReframeAudio,
@@ -217,6 +228,19 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
       audioElRef.current = null;
     };
   }, []);
+
+  // Pause everything the moment the player goes inactive (e.g. a dive sheet
+  // just opened on top of us). We deliberately don't reset sectionIndex or
+  // any other state — popping the sheet should reveal the player exactly
+  // as the user left it, so they can resume mid-section without a tap.
+  useEffect(() => {
+    if (!inactive) return;
+    audioElRef.current?.pause();
+    if (typeof window !== 'undefined' && window.speechSynthesis) {
+      window.speechSynthesis.cancel();
+    }
+    setIsSectionPlaying(false);
+  }, [inactive]);
 
   // When the briefing changes, reset state and free any cached blob URLs.
   // Depends only on briefingId — useAudioPlayer.loadBriefing isn't memoized,
@@ -492,11 +516,12 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
             {onReframeAudio && (
               <button
                 onClick={onReframeAudio}
+                disabled={isReframing}
                 title="Re-frame this lesson with a different analogy"
-                className="text-xs text-blue-300 hover:text-blue-200 px-2.5 py-1 rounded border border-blue-500/40 hover:border-blue-400/60 hover:bg-blue-500/10 transition-colors flex items-center gap-1"
+                className="text-xs text-blue-300 hover:text-blue-200 disabled:text-dark-500 disabled:cursor-not-allowed px-2.5 py-1 rounded border border-blue-500/40 hover:border-blue-400/60 disabled:border-dark-700 hover:bg-blue-500/10 disabled:hover:bg-transparent transition-colors flex items-center gap-1"
               >
                 <span>💡</span>
-                <span>Different analogy</span>
+                <span>{isReframing ? 'Re-framing…' : 'Different analogy'}</span>
               </button>
             )}
             <button
@@ -545,6 +570,16 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
           >
             Dismiss
           </button>
+        </div>
+      )}
+
+      {/* In-place reframe banner. Replaces the old full-screen LoadingIndicator
+          for the audio re-frame flow — the deck stays the same, only the
+          narration is being regenerated, so a banner is enough context. */}
+      {isReframing && (
+        <div className="bg-blue-600/15 border-b border-blue-500/30 text-blue-200 text-sm px-4 py-3 flex items-center gap-3">
+          <span className="inline-block w-4 h-4 border-2 border-blue-300 border-t-transparent rounded-full animate-spin flex-shrink-0" />
+          <span className="flex-1">🎵 Re-framing this lesson with a fresh analogy…</span>
         </div>
       )}
 
@@ -612,7 +647,11 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
         </div>
       </div>
 
-      {pendingCard && (
+      {/* Suppress the overlay while inactive so it doesn't peek through the
+          dive sheet's backdrop. pendingCard state is preserved — when the
+          sheet pops and inactive flips back to false, the overlay re-renders
+          exactly where the user left it. */}
+      {pendingCard && !inactive && (
         <FlashcardOverlay
           card={pendingCard}
           revealed={cardRevealed}

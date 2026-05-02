@@ -10,6 +10,8 @@ import { AppHeader } from './components/AppHeader';
 import { AddPaymentModal } from './components/AddPaymentModal';
 import { AudioPlayer } from './components/AudioPlayer';
 import { LibraryView } from './components/LibraryView';
+import { DiveSheet } from './components/DiveSheet';
+import { DiveLoader } from './components/DiveLoader';
 import { DEMO_PAUSE_AND_QUIZ_BRIEFING, DEMO_FLASHCARDS } from './devDemoBriefing';
 import { briefingLibrary, type SavedBriefing } from './services/briefingLibrary';
 
@@ -56,6 +58,8 @@ function AppMain() {
     wasLoadedFromLibrary,
     isInDive,
     audioStartSectionIndex,
+    diveSelection,
+    parentSnapshot,
     generateContent,
     reset: resetGeneration,
     loadFromLibrary,
@@ -77,16 +81,19 @@ function AppMain() {
     }
   }, [refreshBilling]);
 
-  // Auto-transition based on the generation state machine. A 'diving' stage
-  // means a recursive dive is in flight — show the LoadingIndicator full
-  // screen so the user sees the wait. 'complete' lands them in the content
-  // view (post-dive AND post-initial-generation share this path).
+  // Auto-transition based on the generation state machine.
+  //
+  // 'diving' / 'reframing' deliberately do NOT flip to 'generating' anymore —
+  // dive loads now stack as a sheet over the parent (see DiveSheet below),
+  // and reframe shows an inline banner inside AudioPlayer. Both keep the
+  // parent's content visible underneath so the user doesn't lose context.
+  // The full-screen LoadingIndicator is reserved for INITIAL generation,
+  // where there's no parent to layer over.
+  //
+  // 'complete' lands the user in the content view (shared by initial
+  // generation, dive completion, and reframe completion).
   const lastSavedKeyRef = useRef<string | null>(null);
   useEffect(() => {
-    if (stage === 'diving' || stage === 'reframing') {
-      setAppState('generating');
-      return;
-    }
     if (stage === 'complete' && flashcards && audioScript) {
       setAppState('content');
       refreshBilling();
@@ -220,19 +227,62 @@ function AppMain() {
         )}
 
         {currentState === 'content' && flashcards && audioScript && (
-          <LearningContentDisplay
-            flashcards={flashcards}
-            audioScript={audioScript}
-            originalContent={originalContent ?? ''}
-            isInDive={isInDive}
-            audioStartSectionIndex={audioStartSectionIndex}
-            onAudioStartSectionConsumed={clearAudioStartSection}
-            onDeepDive={deepDive}
-            onExitDive={exitDive}
-            onAnalogyUpdated={updateCardAnalogy}
-            onReframeAudio={reframeAudio}
-            onBack={handleNavigateHome}
-          />
+          // ── Stacked-card layout ────────────────────────────────────────
+          // The "bottom" LearningContentDisplay is ALWAYS rendered as the
+          // first child of this fragment so React keeps the same instance
+          // across the dive lifecycle. That preservation is what lets
+          // AudioPlayer hold onto its sectionIndex (and any open
+          // FlashcardOverlay) so popping a dive sheet returns the user
+          // exactly where they were — no remount, no replay-from-zero.
+          //
+          // While in a dive, the bottom layer reads from parentSnapshot
+          // (the parent briefing) and is rendered `inactive`. The top
+          // DiveSheet hosts either the DiveLoader (gen in flight) or the
+          // dive's own LearningContentDisplay (stage='complete').
+          //
+          // Reframe: when stage='reframing' and we're NOT inside a dive,
+          // the bottom layer shows an inline "🎵 Re-framing…" banner
+          // inside its AudioPlayer rather than triggering a full-screen
+          // takeover.
+          <>
+            <LearningContentDisplay
+              flashcards={parentSnapshot ? parentSnapshot.flashcards : flashcards}
+              audioScript={parentSnapshot ? parentSnapshot.audioScript : audioScript}
+              originalContent={parentSnapshot ? (parentSnapshot.originalContent ?? '') : (originalContent ?? '')}
+              isInDive={false}
+              inactive={!!parentSnapshot}
+              isReframing={!parentSnapshot && stage === 'reframing'}
+              audioStartSectionIndex={parentSnapshot ? undefined : audioStartSectionIndex}
+              onAudioStartSectionConsumed={clearAudioStartSection}
+              onDeepDive={deepDive}
+              onExitDive={exitDive}
+              onAnalogyUpdated={updateCardAnalogy}
+              onReframeAudio={reframeAudio}
+              onBack={handleNavigateHome}
+            />
+            {parentSnapshot && (
+              <DiveSheet onClose={exitDive}>
+                {stage === 'diving' ? (
+                  <DiveLoader selection={diveSelection ?? ''} />
+                ) : (
+                  <LearningContentDisplay
+                    flashcards={flashcards}
+                    audioScript={audioScript}
+                    originalContent={originalContent ?? ''}
+                    isInDive
+                    isReframing={stage === 'reframing'}
+                    audioStartSectionIndex={audioStartSectionIndex}
+                    onAudioStartSectionConsumed={clearAudioStartSection}
+                    onDeepDive={deepDive}
+                    onExitDive={exitDive}
+                    onAnalogyUpdated={updateCardAnalogy}
+                    onReframeAudio={reframeAudio}
+                    onBack={handleNavigateHome}
+                  />
+                )}
+              </DiveSheet>
+            )}
+          </>
         )}
 
         {currentState === 'library' && (
