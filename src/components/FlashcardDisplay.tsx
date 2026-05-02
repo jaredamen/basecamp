@@ -105,8 +105,8 @@ export function FlashcardDisplay({
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-solar-900 via-solar-800 to-solar-900 py-8 px-6">
-      <div className="max-w-2xl mx-auto space-y-6">
+    <div className="space-y-6">
+      <div className="space-y-6">
         {/* Header */}
         <div className="text-center space-y-4">
           <h1 className="text-3xl font-bold text-solar-100">{flashcardSet.title}</h1>

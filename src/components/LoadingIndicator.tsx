@@ -27,7 +27,7 @@ export function LoadingIndicator({ stage, progress, error, insufficientCredits, 
   // Insufficient credits — specific, actionable error
   if (insufficientCredits) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-solar-900 via-solar-800 to-solar-900 flex items-center justify-center px-6">
+      <div className="space-y-6 px-6">
         <div className="max-w-md mx-auto text-center space-y-6">
           <div className="text-6xl">💳</div>
           <h1 className="text-2xl font-bold text-solar-100">Add a payment method to continue</h1>
@@ -61,7 +61,7 @@ export function LoadingIndicator({ stage, progress, error, insufficientCredits, 
   // General error
   if (error) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-solar-900 via-solar-800 to-solar-900 flex items-center justify-center px-6">
+      <div className="space-y-6 px-6">
         <div className="max-w-md mx-auto text-center space-y-6">
           <div className="text-6xl">😵</div>
           <h1 className="text-2xl font-bold text-solar-100">Something went wrong</h1>
@@ -83,7 +83,7 @@ export function LoadingIndicator({ stage, progress, error, insufficientCredits, 
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-solar-900 via-solar-800 to-solar-900 flex items-center justify-center px-6">
+    <div className="space-y-6 px-6">
       <div className="max-w-lg mx-auto text-center space-y-8">
         {/* Main Status */}
         <div className="space-y-4">

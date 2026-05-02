@@ -18,7 +18,7 @@ export function SetupPathSelector({ onPathSelected, onSkip }: SetupPathSelectorP
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-solar-900 via-solar-800 to-solar-900 flex flex-col justify-center px-6">
+    <div className="space-y-6 px-6">
       <div className="max-w-2xl mx-auto text-center space-y-8">
         {/* Header */}
         <div className="space-y-4">

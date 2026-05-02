@@ -13,6 +13,14 @@ interface AppHeaderProps {
   onSignOut: () => void;
 }
 
+/**
+ * Slim floating top strip — credit chip + nav chips + sign-out. Sits
+ * above the orb without competing visually for attention. Glass
+ * background, mono-spaced data, gold accents.
+ *
+ * Nav button names ("New", "Current", "Library") preserved verbatim
+ * because the Golden-Path E2E asserts on them.
+ */
 export function AppHeader({
   userName,
   usageCents,
@@ -30,37 +38,37 @@ export function AppHeader({
   const usageDollars = (usageCents / 100).toFixed(2);
   const freeDollars = (freeRemainingCents / 100).toFixed(2);
 
-  const tabClass = (active: boolean) =>
-    `px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+  const navChip = (active: boolean) =>
+    `px-2.5 py-1 rounded-full text-xs font-mono transition-colors ${
       active
-        ? 'bg-solar-700 text-solar-100'
-        : 'text-solar-400 hover:text-solar-100 hover:bg-solar-800/60'
+        ? 'bg-solar-gold/20 text-solar-gold border border-solar-gold/40'
+        : 'text-solar-500 hover:text-solar-100 border border-transparent'
     }`;
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-50 glass border-b border-solar-gold/15">
-      <div className="max-w-6xl mx-auto px-4 h-14 flex items-center justify-between">
-        <div className="flex items-center space-x-6">
+    <header className="fixed top-0 left-0 right-0 z-50 glass border-b border-solar-gold/10">
+      <div className="max-w-6xl mx-auto px-4 h-10 flex items-center justify-between">
+        <div className="flex items-center gap-4">
           <button
             onClick={onNavigateHome}
-            className="text-lg font-bold text-solar-100 hover:text-solar-gold transition-colors"
+            className="text-sm font-semibold text-solar-100 hover:text-solar-gold transition-colors tracking-wide"
           >
-            Basecamp
+            basecamp
           </button>
 
-          <nav className="hidden sm:flex items-center space-x-1">
-            <button onClick={onNavigateHome} className={tabClass(currentView === 'input')}>
+          <nav className="hidden sm:flex items-center gap-1">
+            <button onClick={onNavigateHome} className={navChip(currentView === 'input')}>
               New
             </button>
             {hasContent && (
-              <button onClick={onNavigateContent} className={tabClass(currentView === 'content')}>
+              <button onClick={onNavigateContent} className={navChip(currentView === 'content')}>
                 Current
               </button>
             )}
-            <button onClick={onNavigateLibrary} className={tabClass(currentView === 'library')}>
+            <button onClick={onNavigateLibrary} className={navChip(currentView === 'library')}>
               Library
               {libraryCount > 0 && (
-                <span className="ml-1.5 inline-flex items-center justify-center text-xs bg-solar-gold/15 text-solar-gold font-mono px-1.5 py-0.5 rounded-full">
+                <span className="ml-1 inline-flex items-center justify-center text-[10px] bg-solar-gold/20 text-solar-gold font-mono px-1 rounded">
                   {libraryCount}
                 </span>
               )}
@@ -68,33 +76,33 @@ export function AppHeader({
           </nav>
         </div>
 
-        <div className="flex items-center space-x-4">
+        <div className="flex items-center gap-3">
           {hasPaymentMethod ? (
-            <span className="text-sm text-solar-400">
-              Usage: <span className="text-solar-100 font-mono">${usageDollars}</span>
+            <span className="text-xs text-solar-500 font-mono">
+              usage: <span className="text-solar-100">${usageDollars}</span>
             </span>
           ) : freeRemainingCents > 0 ? (
-            <span className="text-sm text-solar-400">
-              Free: <span className="text-solar-gold font-mono">${freeDollars} left</span>
+            <span className="text-xs text-solar-500 font-mono">
+              free: <span className="text-solar-gold">${freeDollars} left</span>
             </span>
           ) : (
             <button
               onClick={onAddPaymentMethod}
-              className="text-sm font-medium text-solar-gold hover:text-solar-amber transition-colors"
+              className="text-xs font-mono text-solar-gold hover:text-solar-amber transition-colors"
             >
-              Add payment method
+              add payment method
             </button>
           )}
 
           {userName && (
-            <span className="hidden sm:inline text-sm text-solar-400">
+            <span className="hidden sm:inline text-xs text-solar-500 font-mono truncate max-w-[12ch]">
               {userName}
             </span>
           )}
 
           <button
             onClick={onSignOut}
-            className="text-xs text-solar-500 hover:text-solar-100 transition-colors"
+            className="text-[10px] text-solar-500 hover:text-solar-100 transition-colors font-mono uppercase tracking-wider"
           >
             Sign out
           </button>
