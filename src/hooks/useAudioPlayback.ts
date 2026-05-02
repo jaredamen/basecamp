@@ -3,7 +3,6 @@ import type { AudioBriefing, AudioInterruptionPoint } from '../types';
 import type { Flashcard } from '../services/aiPrompting';
 import { useAudioPlayer } from './useAudioPlayer';
 import { useTTS } from './useTTS';
-import { useBYOK } from './useBYOK';
 import { fetchVoiceAudio, InsufficientCreditsError } from '../services/voiceTTS';
 import { briefingLibrary } from '../services/briefingLibrary';
 import type { FlareState } from '../components/SolarFlare';
@@ -134,12 +133,6 @@ export function useAudioPlayback({
 }: UseAudioPlaybackInput): UseAudioPlaybackOutput {
   const { playerState, loadBriefing } = useAudioPlayer();
   const { ttsState } = useTTS();
-  const { config, isManaged } = useBYOK();
-
-  const byokOpenAIKey =
-    !isManaged && config?.aiProvider?.id === 'openai'
-      ? config.aiProvider.apiKey
-      : undefined;
 
   const [showScript, setShowScript] = useState(false);
 
@@ -245,7 +238,7 @@ export function useAudioPlayback({
 
     const promise = (async () => {
       try {
-        const audioBlob = await fetchVoiceAudio(text, byokOpenAIKey);
+        const audioBlob = await fetchVoiceAudio(text);
         const url = URL.createObjectURL(audioBlob);
         audioUrlsRef.current.set(i, url);
         return url;
@@ -259,7 +252,7 @@ export function useAudioPlayback({
     })();
     inFlightRef.current.set(i, promise);
     return promise;
-  }, [sections, byokOpenAIKey]);
+  }, [sections]);
 
   const speakViaBrowser = useCallback((i: number) => {
     if (!sections || i >= sections.length) {
