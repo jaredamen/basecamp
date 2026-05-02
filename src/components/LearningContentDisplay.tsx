@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { FlashcardDisplay } from './FlashcardDisplay';
 import { AudioPlayer } from './AudioPlayer';
 import type { FlashcardSet, AudioScript } from '../services/aiPrompting';
@@ -101,49 +102,70 @@ export function LearningContentDisplay({
       </div>
 
       <div className="flex-1 flex flex-col">
-        {viewMode === 'audio' ? (
-          <AudioPlayer
-            // Force a fresh mount whenever the audio's identity changes —
-            // critically, when the user clicks "Different analogy" and the
-            // audioScript is regenerated. AudioPlayer caches per-section
-            // TTS blob URLs internally; without remount, those blobs are
-            // stale relative to the new sections and the user would hear
-            // the OLD audio when they hit play. briefing_id alone isn't
-            // enough because it's keyed off flashcards.id (deck unchanged
-            // on a reframe). Dive lifecycle preserves audioScript.id on
-            // both layers, so this key doesn't churn during dive enter/exit.
-            key={audioScript.id}
-            briefing={{
-              briefing_id: flashcards.id,
-              title: audioScript.title || flashcards.title || 'Audio Briefing',
-              source: '',
-              created_at: new Date().toISOString(),
-              script: audioScript.content,
-              audio_file: undefined,
-              sections: audioScript.sections.map(s => ({ id: s.id, content: s.content })),
-              interruptionPoints: audioScript.interruptionPoints,
-            }}
-            cards={flashcards.cards}
-            parentContent={originalContent}
-            initialSectionIndex={audioStartSectionIndex}
-            onInitialSectionConsumed={onAudioStartSectionConsumed}
-            inactive={inactive}
-            isReframing={isReframing}
-            onDeepDive={onDeepDive}
-            onAnalogyUpdated={onAnalogyUpdated}
-            onReframeAudio={onReframeAudio}
-            onBack={() => setViewMode('flashcards')}
-          />
-        ) : (
-          <FlashcardDisplay
-            flashcardSet={flashcards}
-            briefingId={flashcards.id}
-            parentContent={originalContent}
-            onDeepDive={onDeepDive}
-            onAnalogyUpdated={onAnalogyUpdated}
-            onComplete={() => setViewMode('audio')}
-          />
-        )}
+        <AnimatePresence mode="wait" initial={false}>
+          {viewMode === 'audio' ? (
+            <motion.div
+              key="audio-view"
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.18 }}
+              className="flex-1 flex flex-col"
+            >
+              <AudioPlayer
+                // Force a fresh mount whenever the audio's identity changes —
+                // critically, when the user clicks "Different analogy" and
+                // the audioScript is regenerated. AudioPlayer caches
+                // per-section TTS blob URLs internally; without remount,
+                // those blobs are stale relative to the new sections and
+                // the user would hear the OLD audio when they hit play.
+                // briefing_id alone isn't enough because it's keyed off
+                // flashcards.id (deck unchanged on a reframe). Dive
+                // lifecycle preserves audioScript.id on both layers, so
+                // this key doesn't churn during dive enter/exit.
+                key={audioScript.id}
+                briefing={{
+                  briefing_id: flashcards.id,
+                  title: audioScript.title || flashcards.title || 'Audio Briefing',
+                  source: '',
+                  created_at: new Date().toISOString(),
+                  script: audioScript.content,
+                  audio_file: undefined,
+                  sections: audioScript.sections.map(s => ({ id: s.id, content: s.content })),
+                  interruptionPoints: audioScript.interruptionPoints,
+                }}
+                cards={flashcards.cards}
+                parentContent={originalContent}
+                initialSectionIndex={audioStartSectionIndex}
+                onInitialSectionConsumed={onAudioStartSectionConsumed}
+                inactive={inactive}
+                isReframing={isReframing}
+                onDeepDive={onDeepDive}
+                onAnalogyUpdated={onAnalogyUpdated}
+                onReframeAudio={onReframeAudio}
+                onBack={() => setViewMode('flashcards')}
+              />
+            </motion.div>
+          ) : (
+            <motion.div
+              key="cards-view"
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.18 }}
+              className="flex-1 flex flex-col"
+            >
+              <FlashcardDisplay
+                flashcardSet={flashcards}
+                briefingId={flashcards.id}
+                parentContent={originalContent}
+                onDeepDive={onDeepDive}
+                onAnalogyUpdated={onAnalogyUpdated}
+                onComplete={() => setViewMode('audio')}
+              />
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     </div>
   );

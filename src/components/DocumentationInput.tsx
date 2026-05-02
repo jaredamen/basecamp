@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { motion } from 'framer-motion';
 import { Loader2 } from 'lucide-react';
 
 interface DocumentationInputProps {
@@ -203,10 +204,12 @@ The AI will extract key concepts, create flashcards for active recall, and write
 
           {/* Generate Button */}
           <div className="flex justify-center pt-4">
-            <button
+            <motion.button
               onClick={handleGenerate}
               disabled={isGenerating || (!url.trim() && !text.trim())}
-              className="px-8 py-4 bg-gradient-to-r from-solar-gold to-solar-amber text-solar-900 rounded-lg font-semibold text-lg hover:from-solar-amber hover:to-solar-ember disabled:from-solar-700 disabled:to-solar-700 disabled:text-solar-500 disabled:cursor-not-allowed transform hover:scale-105 transition-all shadow-lg shadow-solar-gold/20"
+              whileHover={{ scale: isGenerating ? 1 : 1.03 }}
+              whileTap={{ scale: isGenerating ? 1 : 0.97 }}
+              className="px-8 py-4 bg-gradient-to-r from-solar-gold to-solar-amber text-solar-900 rounded-lg font-semibold text-lg hover:from-solar-amber hover:to-solar-ember disabled:from-solar-700 disabled:to-solar-700 disabled:text-solar-500 disabled:cursor-not-allowed transition-all shadow-lg shadow-solar-gold/20"
             >
               {isGenerating ? (
                 <span className="flex items-center">
@@ -216,7 +219,7 @@ The AI will extract key concepts, create flashcards for active recall, and write
               ) : (
                 'Generate Learning Content'
               )}
-            </button>
+            </motion.button>
           </div>
 
           {/* Features Preview */}

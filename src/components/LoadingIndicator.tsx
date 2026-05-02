@@ -1,3 +1,4 @@
+import { motion } from 'framer-motion';
 import { Check } from 'lucide-react';
 
 interface LoadingIndicatorProps {
@@ -94,9 +95,10 @@ export function LoadingIndicator({ stage, progress, error, insufficientCredits, 
         {/* Progress Bar */}
         <div className="space-y-4">
           <div className="w-full bg-solar-700 rounded-full h-4 overflow-hidden">
-            <div
-              className="bg-gradient-to-r from-solar-gold to-solar-amber h-4 rounded-full transition-all duration-500 ease-out"
-              style={{ width: `${progress}%` }}
+            <motion.div
+              className="bg-gradient-to-r from-solar-gold to-solar-amber h-4 rounded-full"
+              animate={{ width: `${progress}%` }}
+              transition={{ duration: 0.6, ease: 'easeOut' }}
             />
           </div>
           <div className="flex justify-between text-sm text-solar-500 font-mono">

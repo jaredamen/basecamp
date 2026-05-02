@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { motion } from 'framer-motion';
 import { briefingLibrary, type SavedBriefing } from '../services/briefingLibrary';
 
 interface LibraryViewProps {
@@ -61,8 +62,10 @@ export function LibraryView({ onOpen, onBack }: LibraryViewProps) {
         ) : (
           <ul className="space-y-3">
             {briefings.map((b) => (
-              <li
+              <motion.li
                 key={b.id}
+                whileHover={{ y: -2 }}
+                transition={{ duration: 0.18 }}
                 className="glass rounded-xl p-4 hover:border-solar-gold/40 transition-colors"
               >
                 <button
@@ -88,7 +91,7 @@ export function LibraryView({ onOpen, onBack }: LibraryViewProps) {
                     Delete
                   </button>
                 </div>
-              </li>
+              </motion.li>
             ))}
           </ul>
         )}

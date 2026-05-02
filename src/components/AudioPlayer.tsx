@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowLeft, Play, Pause, Loader2 } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { ArrowLeft, Loader2 } from 'lucide-react';
 import type { AudioBriefing, AudioInterruptionPoint } from '../types';
 import type { Flashcard } from '../services/aiPrompting';
 import { useAudioPlayer } from '../hooks/useAudioPlayer';
@@ -8,6 +9,7 @@ import { useBYOK } from '../hooks/useBYOK';
 import { useFlashcardAI } from '../hooks/useFlashcardAI';
 import { fetchVoiceAudio, InsufficientCreditsError } from '../services/voiceTTS';
 import { briefingLibrary } from '../services/briefingLibrary';
+import { SolarFlare, type FlareState } from './SolarFlare';
 
 interface AudioPlayerProps {
   briefing: AudioBriefing;
@@ -464,10 +466,6 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
     }, advanceMs);
   };
 
-  const isCurrentlyPlaying = hasSections
-    ? isSectionPlaying
-    : (playerState.isPlaying || ttsState.isReading);
-
   const statusLabel = pendingCard
     ? 'Recall time'
     : isFetchingAudio
@@ -475,6 +473,26 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
       : isSectionPlaying
         ? backend === 'browser' ? 'Playing (browser voice)' : 'Playing'
         : 'Ready';
+
+  // Drive the SolarFlare core from the same state that used to drive the
+  // square play-button + linear progress bar. Quiz wins over Loading wins
+  // over Listening — the most-attention-demanding state takes precedence.
+  const flareState: FlareState = pendingCard
+    ? 'Quiz'
+    : isFetchingAudio
+      ? 'Loading'
+      : isSectionPlaying
+        ? 'Listening'
+        : 'Idle';
+
+  // Outer ring fill — same fraction as the old linear bar. For audio_file
+  // briefings (legacy), use elapsed-time fraction. For section-based
+  // briefings, use sectionIndex + half-step while a section is playing.
+  const ringProgress = briefing.audio_file && playerState.duration > 0
+    ? playerState.currentTime / playerState.duration
+    : hasSections && sections
+      ? (sectionIndex + (isSectionPlaying ? 0.5 : 0)) / sections.length
+      : 0;
 
   return (
     <div className="flex-1 flex flex-col">
@@ -559,7 +577,11 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
         </div>
       )}
 
-      {/* Main Content */}
+      {/* Main Content — the SolarFlare core IS the play control. Its outer
+          ring fills with section progress so progress is communicated visually
+          (ring) and textually (status row + "Section X of Y" in the header).
+          We removed the linear progress bars + the bottom play-button drawer
+          from PR-A; the centerpiece does both jobs. */}
       <div className="flex-1 overflow-auto">
         {showScript ? (
           <div className="p-4 pb-32">
@@ -570,77 +592,51 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
             </div>
           </div>
         ) : (
-          <div className="flex-1 flex flex-col items-center justify-center p-8 pb-32">
-            {briefing.audio_file && playerState.duration > 0 && (
-              <div className="w-full max-w-sm mb-6">
-                <div className="bg-solar-700 rounded-full h-2 mb-2">
-                  <div
-                    className="bg-gradient-to-r from-solar-gold to-solar-amber h-2 rounded-full transition-all duration-300"
-                    style={{ width: `${(playerState.currentTime / playerState.duration) * 100}%` }}
-                  />
-                </div>
-                <div className="flex justify-between text-xs text-solar-500 font-mono">
-                  <span>{formatTime(playerState.currentTime)}</span>
-                  <span>{formatTime(playerState.duration)}</span>
-                </div>
+          <div className="flex-1 flex flex-col items-center justify-center p-8 pb-12 gap-8">
+            <SolarFlare
+              state={flareState}
+              progress={ringProgress}
+              onToggle={handlePlayPause}
+              disabled={!!pendingCard || isFetchingAudio}
+            />
+            {hasSections && sections && (
+              <div className="flex flex-col items-center gap-1 text-xs text-solar-500 font-mono">
+                <span>{statusLabel}</span>
+                <span>{interruptionPoints.length} checkpoint{interruptionPoints.length === 1 ? '' : 's'}</span>
               </div>
             )}
-            {hasSections && sections && !briefing.audio_file && (
-              <div className="w-full max-w-md mb-6">
-                <div className="bg-solar-700 rounded-full h-2">
-                  <div
-                    className="bg-gradient-to-r from-solar-gold to-solar-amber h-2 rounded-full transition-all duration-500"
-                    style={{ width: `${((sectionIndex + (isSectionPlaying ? 0.5 : 0)) / sections.length) * 100}%` }}
-                  />
-                </div>
-                <div className="flex justify-between text-xs text-solar-500 font-mono mt-2">
-                  <span>{statusLabel}</span>
-                  <span>{interruptionPoints.length} checkpoint{interruptionPoints.length === 1 ? '' : 's'}</span>
-                </div>
+            {briefing.audio_file && playerState.duration > 0 && (
+              <div className="text-xs text-solar-500 font-mono">
+                {formatTime(playerState.currentTime)} / {formatTime(playerState.duration)}
               </div>
             )}
           </div>
         )}
       </div>
 
-      {/* Play/Pause Button */}
-      <div className="glass border-t border-solar-gold/15 p-4 pb-20">
-        <div className="audio-player-controls">
-          <button
-            onClick={handlePlayPause}
-            disabled={!!pendingCard || isFetchingAudio}
-            className="p-4 bg-solar-gold hover:bg-solar-amber disabled:bg-solar-700 disabled:text-solar-500 disabled:cursor-not-allowed rounded-full text-solar-900 shadow-lg shadow-solar-gold/30 transition-colors"
-            aria-label={isCurrentlyPlaying ? 'Pause' : isFetchingAudio ? 'Loading' : 'Play'}
-          >
-            {isFetchingAudio ? (
-              <Loader2 className="w-8 h-8 animate-spin" />
-            ) : isCurrentlyPlaying ? (
-              <Pause className="w-8 h-8" fill="currentColor" />
-            ) : (
-              <Play className="w-8 h-8 ml-1" fill="currentColor" />
-            )}
-          </button>
-        </div>
-      </div>
-
       {/* Suppress the overlay while inactive so it doesn't peek through the
           dive sheet's backdrop. pendingCard state is preserved — when the
           sheet pops and inactive flips back to false, the overlay re-renders
-          exactly where the user left it. */}
-      {pendingCard && !inactive && (
-        <FlashcardOverlay
-          card={pendingCard}
-          revealed={cardRevealed}
-          parentContent={parentContent}
-          onReveal={() => setCardRevealed(true)}
-          onVerdict={handleCardVerdict}
-          // Wrap onDeepDive so the overlay only needs to pass `selection`;
-          // we attach the current sectionIndex here so the parent can save
-          // it for resume-on-exit.
-          onDeepDive={onDeepDive ? (sel: string) => onDeepDive(sel, sectionIndex) : undefined}
-          onAnalogyUpdated={onAnalogyUpdated}
-        />
-      )}
+          exactly where the user left it.
+          AnimatePresence is what makes the overlay's exit animation play
+          when pendingCard is cleared (a verdict closes it after a beat). */}
+      <AnimatePresence>
+        {pendingCard && !inactive && (
+          <FlashcardOverlay
+            key="flashcard-overlay"
+            card={pendingCard}
+            revealed={cardRevealed}
+            parentContent={parentContent}
+            onReveal={() => setCardRevealed(true)}
+            onVerdict={handleCardVerdict}
+            // Wrap onDeepDive so the overlay only needs to pass `selection`;
+            // we attach the current sectionIndex here so the parent can save
+            // it for resume-on-exit.
+            onDeepDive={onDeepDive ? (sel: string) => onDeepDive(sel, sectionIndex) : undefined}
+            onAnalogyUpdated={onAnalogyUpdated}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 };
@@ -746,13 +742,26 @@ const FlashcardOverlay: React.FC<FlashcardOverlayProps> = ({
           : null;
 
   return (
-    <div
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.2 }}
       className="fixed inset-0 z-50 flex items-center justify-center bg-solar-900/85 backdrop-blur-md p-4"
       role="dialog"
       aria-modal="true"
       aria-label="Active recall flashcard"
     >
-      <div className="w-full max-w-lg glass-strong rounded-2xl p-6">
+      <motion.div
+        initial={{ opacity: 0, y: 24, scale: 0.94 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        exit={{ opacity: 0, y: 16, scale: 0.96 }}
+        className="w-full max-w-lg glass-strong rounded-2xl p-6 relative overflow-hidden"
+      >
+        {/* Glass-shard accent — angled gold line that catches the eye toward
+            the choices below the question. Subtle, not distracting. */}
+        <div className="absolute inset-x-0 top-[42%] h-px bg-gradient-to-r from-transparent via-solar-gold/30 to-transparent transform -skew-y-1 pointer-events-none" />
+
         <div className="flex items-center gap-2 text-solar-gold text-xs font-semibold uppercase tracking-wider mb-3">
           <span className="inline-block w-2 h-2 rounded-full bg-solar-gold animate-pulse" />
           {revealed ? 'Answer' : 'Recall'}
@@ -912,7 +921,7 @@ const FlashcardOverlay: React.FC<FlashcardOverlayProps> = ({
             </div>
           </>
         )}
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
   );
 };
