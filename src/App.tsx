@@ -3,11 +3,13 @@ import { AnimatePresence } from 'framer-motion';
 import { useContentGeneration } from './hooks/useContentGeneration';
 import { useManaged } from './hooks/useManaged';
 import { useAudioPlayback } from './hooks/useAudioPlayback';
+import { useOrbVoice } from './hooks/useOrbVoice';
 import { AppShell } from './components/AppShell';
 import { OrbStage } from './components/OrbStage';
 import { AppHeader } from './components/AppHeader';
 import { AddPaymentModal } from './components/AddPaymentModal';
 import { SignInBand } from './components/bands/SignInBand';
+import { OnboardingBand } from './components/bands/OnboardingBand';
 import { TopicInputBand } from './components/bands/TopicInputBand';
 import { GeneratingBand } from './components/bands/GeneratingBand';
 import { ContentBand } from './components/bands/ContentBand';
@@ -17,8 +19,9 @@ import { DiveLoader } from './components/DiveLoader';
 import type { FlareState } from './components/SolarFlare';
 import type { AudioBriefing } from './types';
 import { briefingLibrary, type SavedBriefing } from './services/briefingLibrary';
+import { loadProfile, clearProfile, type UserProfile } from './services/userProfile';
 
-type AppState = 'setup' | 'input' | 'generating' | 'content' | 'library';
+type AppState = 'setup' | 'onboarding' | 'input' | 'generating' | 'content' | 'library';
 
 function App() {
   return <AppMain />;
@@ -50,6 +53,7 @@ function AppMain() {
   } = useContentGeneration();
   const { session, billing, isAuthenticated, loading: managedLoading, refreshBilling, signOut } = useManaged();
   const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [profile, setProfile] = useState<UserProfile | null>(() => loadProfile());
 
   // Construct the AudioBriefing from current state. Memoized on the IDs
   // that should trigger a useAudioPlayback reload (deck change OR audio
@@ -137,27 +141,51 @@ function AppMain() {
   };
   const handleSignOut = async () => {
     await signOut();
+    clearProfile();
+    setProfile(null);
     resetGeneration();
     setAppState('setup');
+  };
+  const handleOnboardingComplete = (next: UserProfile) => {
+    setProfile(next);
+    setAppState('input');
   };
   const handleAddPaymentMethod = () => setShowPaymentModal(true);
 
   // ── Determine the visible state ─────────────────────────────────────
-  // Single managed path now: not authed → show sign-in. Authed → app.
+  // not authed → sign-in.
+  // authed but no profile saved → onboarding.
+  // authed + profile → app.
   let currentState = appState;
   if (!isAuthenticated && !managedLoading) {
     currentState = 'setup';
   } else if (currentState === 'setup' && isAuthenticated) {
-    currentState = 'input';
+    currentState = profile ? 'input' : 'onboarding';
+  } else if (currentState === 'input' && isAuthenticated && !profile) {
+    // Edge case: profile was cleared mid-session — restart onboarding.
+    currentState = 'onboarding';
   }
 
-  const showHeader = isAuthenticated && currentState !== 'setup';
+  const showHeader = isAuthenticated && currentState !== 'setup' && currentState !== 'onboarding';
   const hasContent = !!(flashcards && audioScript);
 
   // ── Derive orb props for the persistent SolarFlare ──────────────────
   // Priority: dive loading > generating > playback state > idle.
   const isLoadingStage = stage === 'fetching' || stage === 'analyzing' ||
     stage === 'flashcards' || stage === 'audio' || stage === 'diving' || stage === 'reframing';
+
+  // Track which onboarding step the user is on so the orb caption mirrors
+  // the question they're answering. The OnboardingBand exposes its own
+  // step via React state, but we want the caption to drive *from* there
+  // — so we hoist the step into App-level state.
+  const [onboardingStep, setOnboardingStep] = useState(0);
+
+  // JARVIS narrator — speaks status + motivationals while gen is in
+  // flight. Returns currentLine so the orb caption tracks the audio.
+  const orbVoice = useOrbVoice({
+    isGenerating: isLoadingStage,
+    stage,
+  });
 
   const flareState: FlareState =
     isLoadingStage ? 'Loading' :
@@ -170,9 +198,23 @@ function AppMain() {
     0;
 
   // Caption text — instrument-readout style. Always lowercase, calm.
+  // While generating, JARVIS's currentLine takes over so the visible
+  // caption matches what the voice is saying.
   const orbCaption = (() => {
+    if (isLoadingStage && orbVoice.currentLine) return orbVoice.currentLine.toLowerCase();
     if (currentState === 'setup') return 'welcome to basecamp';
-    if (currentState === 'input') return 'ready · paste a topic';
+    if (currentState === 'onboarding') {
+      const captions = [
+        'first — what should I call you?',
+        'good. and what do you do?',
+        'a domain or hobby you know really well?',
+        'last one — what brings you here today?',
+      ];
+      return captions[Math.min(onboardingStep, captions.length - 1)];
+    }
+    if (currentState === 'input') {
+      return profile?.name ? `ready, ${profile.name.toLowerCase()} · paste a topic` : 'ready · paste a topic';
+    }
     if (stage === 'diving') return diveSelection ? `diving into "${diveSelection}"…` : 'diving deeper…';
     if (stage === 'reframing') return 're-framing analogy…';
     if (isLoadingStage) return `${stage} · ${Math.round(progress)}%`;
@@ -243,6 +285,14 @@ function AppMain() {
           <div className="relative w-full max-w-2xl px-2 min-h-[200px]">
             <AnimatePresence mode="wait" initial={false}>
               {currentState === 'setup' && <SignInBand key="sign-in" />}
+
+              {currentState === 'onboarding' && (
+                <OnboardingBand
+                  key="onboarding"
+                  onStepChange={setOnboardingStep}
+                  onComplete={handleOnboardingComplete}
+                />
+              )}
 
               {currentState === 'input' && (
                 <TopicInputBand

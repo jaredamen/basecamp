@@ -1,5 +1,6 @@
 import type { AudioInterruptionPoint } from '../types';
 import { wrapUntrusted } from '../../lib/governancePrompt';
+import { renderAudienceBlock, type UserProfile } from './userProfile';
 
 export interface FlashcardSet {
   id: string;
@@ -557,6 +558,7 @@ export class AIPromptingService {
     content: string,
     _sourceType: 'url' | 'text',
     audioScript?: AudioScript,
+    userProfile?: UserProfile | null,
   ): string {
     // Per-deck domain palette injected so the LLM doesn't get to pick its
     // own (it'll default to clichés). The pool shuffles per call, so two
@@ -572,11 +574,16 @@ export class AIPromptingService {
           .join('\n\n')
       : '(no audio briefing yet — extract concepts directly from source content)';
 
-    return FLASHCARD_PROMPT
+    const built = FLASHCARD_PROMPT
       .replace('{domainPool}', palette)
       .replace('{paletteSize}', String(PALETTE_SIZE))
       .replace('{content}', wrapUntrusted(content))
       .replace('{audioScript}', wrapUntrusted(audioBlock));
+
+    // Prepend the audience block so the LLM treats the user's profile as
+    // bridging context for analogies (sanitised in userProfile.ts before
+    // it ever gets here, so the `<audience>` tag can't be escaped).
+    return renderAudienceBlock(userProfile ?? null) + built;
   }
 
   /**
@@ -684,8 +691,9 @@ export class AIPromptingService {
     return { flashcards, interruptionPoints };
   }
 
-  getAudioScriptPrompt(content: string): string {
-    return AUDIO_SCRIPT_PROMPT.replace('{content}', wrapUntrusted(content));
+  getAudioScriptPrompt(content: string, userProfile?: UserProfile | null): string {
+    const built = AUDIO_SCRIPT_PROMPT.replace('{content}', wrapUntrusted(content));
+    return renderAudienceBlock(userProfile ?? null) + built;
   }
 
   /**
@@ -698,16 +706,18 @@ export class AIPromptingService {
     content: string,
     flashcards: Flashcard[],
     previousAudioTitle: string,
+    userProfile?: UserProfile | null,
   ): string {
     const cardList = flashcards
       .map(card => `- id: "${card.id}" — ${card.front}\n  answer: ${card.back}`)
       .join('\n');
     const palette = buildDomainPalette();
-    return AUDIO_REFRAME_PROMPT
+    const built = AUDIO_REFRAME_PROMPT
       .replace('{previousTitle}', previousAudioTitle || 'Untitled')
       .replace('{domainPool}', palette)
       .replace('{flashcards}', cardList)
       .replace('{content}', wrapUntrusted(content.slice(0, 8000)));
+    return renderAudienceBlock(userProfile ?? null) + built;
   }
 
   /**
@@ -842,12 +852,14 @@ export class AIPromptingService {
   getAnalogyRefreshPrompt(
     card: { front: string; back: string; explanation?: string },
     parentContext: string,
+    userProfile?: UserProfile | null,
   ): string {
-    return ANALOGY_REFRESH_PROMPT
+    const built = ANALOGY_REFRESH_PROMPT
       .replace('{question}', card.front)
       .replace('{canonical}', card.back)
       .replace('{existing}', card.explanation || '(no existing analogy)')
       .replace('{parentContext}', wrapUntrusted(parentContext.slice(0, 4000)));
+    return renderAudienceBlock(userProfile ?? null) + built;
   }
 
   parseAnalogyResponse(jsonString: string): string {
@@ -871,6 +883,7 @@ export class AIPromptingService {
     parentContext: string,
     parentCards: Flashcard[],
     diveAudio: AudioScript,
+    userProfile?: UserProfile | null,
   ): string {
     const parentCardsList = parentCards
       .slice(0, 12)
@@ -879,20 +892,26 @@ export class AIPromptingService {
     const audioBlock = diveAudio.sections
       .map((s, idx) => `Section ${idx} — ${s.heading || 'Untitled'}\n${s.content}`)
       .join('\n\n');
-    return DEEP_DIVE_FLASHCARD_PROMPT
+    const built = DEEP_DIVE_FLASHCARD_PROMPT
       .replace('{selection}', selection.slice(0, 200))
       .replace('{parentCards}', parentCardsList || '(none)')
       .replace('{parentContext}', wrapUntrusted(parentContext.slice(0, 4000)))
       .replace('{diveAudio}', wrapUntrusted(audioBlock));
+    return renderAudienceBlock(userProfile ?? null) + built;
   }
 
   /**
    * Builds the dive audio prompt. Audio-first pipeline: no cards yet at
    * audio-gen time. Just selection + parent context.
    */
-  getDeepDiveAudioPrompt(selection: string, parentContext: string): string {
-    return DEEP_DIVE_AUDIO_PROMPT
+  getDeepDiveAudioPrompt(
+    selection: string,
+    parentContext: string,
+    userProfile?: UserProfile | null,
+  ): string {
+    const built = DEEP_DIVE_AUDIO_PROMPT
       .replace('{selection}', selection.slice(0, 200))
       .replace('{parentContext}', wrapUntrusted(parentContext.slice(0, 4000)));
+    return renderAudienceBlock(userProfile ?? null) + built;
   }
 }

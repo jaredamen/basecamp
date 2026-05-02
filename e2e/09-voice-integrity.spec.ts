@@ -158,12 +158,13 @@ test.describe('Voice integrity', () => {
     await page.goto('/');
     await page.evaluate(() => {
       localStorage.setItem(
-        'basecamp-byok-config',
+        'basecamp-user-profile',
         JSON.stringify({
-          version: '2.0.0',
-          setupPath: 'managed',
-          aiProvider: null,
-          voiceProvider: null,
+          name: 'Tester',
+          profession: 'engineer',
+          expertise: 'distributed systems',
+          intent: 'exploring stoicism',
+          completedAt: new Date().toISOString(),
         })
       );
     });
