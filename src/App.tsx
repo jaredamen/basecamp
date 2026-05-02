@@ -55,6 +55,7 @@ function AppMain() {
     originalContent,
     wasLoadedFromLibrary,
     isInDive,
+    audioStartSectionIndex,
     generateContent,
     reset: resetGeneration,
     loadFromLibrary,
@@ -62,6 +63,7 @@ function AppMain() {
     exitDive,
     updateCardAnalogy,
     reframeAudio,
+    clearAudioStartSection,
   } = useContentGeneration();
   const { session, billing, isAuthenticated, loading: managedLoading, refreshBilling, signOut } = useManaged();
   const [showPaymentModal, setShowPaymentModal] = useState(false);
@@ -223,6 +225,8 @@ function AppMain() {
             audioScript={audioScript}
             originalContent={originalContent ?? ''}
             isInDive={isInDive}
+            audioStartSectionIndex={audioStartSectionIndex}
+            onAudioStartSectionConsumed={clearAudioStartSection}
             onDeepDive={deepDive}
             onExitDive={exitDive}
             onAnalogyUpdated={updateCardAnalogy}

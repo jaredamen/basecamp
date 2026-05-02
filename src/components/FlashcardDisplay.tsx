@@ -214,13 +214,25 @@ export function FlashcardDisplay({
                 </button>
               )}
 
-              <div className="flex justify-end">
-                <button
-                  onClick={() => onDeepDive(currentCard.front)}
-                  className="text-xs text-purple-400 hover:text-purple-300 underline-offset-2 hover:underline"
-                >
-                  🤿 Dive deeper into this
-                </button>
+              {/* Tokenized dive: pick a specific named concept to drill into,
+                  rather than diving on the whole card. Falls back to a single
+                  chip with the card's `front` if the LLM didn't emit keyTerms. */}
+              <div className="space-y-2">
+                <div className="text-xs text-dark-400">🤿 Dive deeper into:</div>
+                <div className="flex flex-wrap gap-2">
+                  {(currentCard.keyTerms && currentCard.keyTerms.length > 0
+                    ? currentCard.keyTerms
+                    : [currentCard.front]
+                  ).map((term, idx) => (
+                    <button
+                      key={idx}
+                      onClick={() => onDeepDive(term)}
+                      className="text-xs px-3 py-1.5 rounded-full bg-purple-500/15 border border-purple-500/40 text-purple-200 hover:bg-purple-500/25 hover:border-purple-400/60 transition-colors"
+                    >
+                      {term}
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
           )}

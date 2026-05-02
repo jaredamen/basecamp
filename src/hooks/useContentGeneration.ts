@@ -25,7 +25,17 @@ interface GenerationState {
     flashcards: FlashcardSet;
     audioScript: AudioScript;
     originalContent?: string;
+    /** Section the user was on when they triggered the dive. Restored on
+     *  exit so the parent's audio resumes where they left off, not at the
+     *  top. Optional — undefined when dive is triggered from Study Cards
+     *  (no audio playing) or before any section change. */
+    lastSectionIndex?: number;
   };
+  /** Initial section index for the AudioPlayer to render at on the next
+   *  briefing-change. Set during exitDive so the parent's audio resumes
+   *  where the user left off. AudioPlayer reads it via the
+   *  `initialSectionIndex` prop and clears it after consuming. */
+  audioStartSectionIndex?: number;
 }
 
 interface GenerationInput {
@@ -214,7 +224,13 @@ export function useContentGeneration() {
    * and even dive again from inside the dive (single-level for v1; a
    * second dive flattens into the same parent).
    */
-  const deepDive = useCallback(async (selection: string) => {
+  const deepDive = useCallback(async (
+    selection: string,
+    /** Section the user was on when they triggered the dive (from the
+     *  AudioPlayer). Stashed in parentSnapshot so exitDive can resume the
+     *  parent's audio where the user left off. */
+    currentSectionIndex?: number,
+  ) => {
     if (!isManaged && !config?.aiProvider) {
       setState(prev => ({ ...prev, error: 'AI provider not configured' }));
       return;
@@ -226,18 +242,25 @@ export function useContentGeneration() {
     setState(prev => {
       if (!prev.flashcards || !prev.audioScript) return prev;
       // Don't bury an existing parent — keep the original parent so the
-      // back action always returns to the user's top-level briefing.
-      const parentSnapshot = prev.parentSnapshot ?? {
-        flashcards: prev.flashcards,
-        audioScript: prev.audioScript,
-        originalContent: prev.originalContent,
-      };
+      // back action always returns to the user's top-level briefing. But
+      // *do* update lastSectionIndex on each dive trigger so the most
+      // recent playback position is the one we return to.
+      const parentSnapshot = prev.parentSnapshot
+        ? { ...prev.parentSnapshot, lastSectionIndex: currentSectionIndex ?? prev.parentSnapshot.lastSectionIndex }
+        : {
+            flashcards: prev.flashcards,
+            audioScript: prev.audioScript,
+            originalContent: prev.originalContent,
+            lastSectionIndex: currentSectionIndex,
+          };
       return {
         ...prev,
         isGenerating: true,
         stage: 'diving',
         progress: 30,
         parentSnapshot,
+        // The dive itself starts at section 0 — it's a fresh briefing.
+        audioStartSectionIndex: 0,
         error: undefined,
       };
     });
@@ -357,7 +380,9 @@ export function useContentGeneration() {
     }
   }, [config, isManaged, aiService]);
 
-  /** Pop the dive — restore the parent briefing. No-op if no dive active. */
+  /** Pop the dive — restore the parent briefing AND the audio section the
+   *  user was on when they triggered the dive, so playback bounces back
+   *  to where they left off. */
   const exitDive = useCallback(() => {
     setState(prev => {
       if (!prev.parentSnapshot) return prev;
@@ -367,8 +392,21 @@ export function useContentGeneration() {
         audioScript: prev.parentSnapshot.audioScript,
         originalContent: prev.parentSnapshot.originalContent,
         parentSnapshot: undefined,
+        // AudioPlayer reads this on its briefing-changed effect, restoring
+        // the section the user was on. Cleared after consumption (see
+        // clearAudioStartSection below).
+        audioStartSectionIndex: prev.parentSnapshot.lastSectionIndex,
       };
     });
+  }, []);
+
+  /** Clear `audioStartSectionIndex` once the AudioPlayer has consumed it.
+   *  Otherwise subsequent re-renders would keep snapping back to the saved
+   *  index instead of letting the player progress naturally. */
+  const clearAudioStartSection = useCallback(() => {
+    setState(prev => (prev.audioStartSectionIndex === undefined
+      ? prev
+      : { ...prev, audioStartSectionIndex: undefined }));
   }, []);
 
   /**
@@ -479,6 +517,7 @@ export function useContentGeneration() {
     deepDive,
     exitDive,
     reframeAudio,
+    clearAudioStartSection,
     /** True when we're inside a dive — UI can show a "Back to parent briefing" affordance. */
     isInDive: !!state.parentSnapshot,
     /** True when an audio re-frame is in flight — UI can disable the trigger. */
