@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { AnimatePresence } from 'framer-motion';
-import { useBYOK } from './hooks/useBYOK';
 import { useContentGeneration } from './hooks/useContentGeneration';
 import { useManaged } from './hooks/useManaged';
 import { useAudioPlayback } from './hooks/useAudioPlayback';
@@ -27,7 +26,6 @@ function App() {
 
 function AppMain() {
   const [appState, setAppState] = useState<AppState>('setup');
-  const { isConfigured, isManaged, clearConfig } = useBYOK();
   const {
     stage,
     progress,
@@ -120,7 +118,6 @@ function AppMain() {
     }
   }, [stage, flashcards, audioScript, refreshBilling, wasLoadedFromLibrary, isInDive]);
 
-  const handleSetupComplete = () => setAppState('input');
   const handleGenerateContent = async (input: { url?: string; text?: string; type: 'url' | 'text' }) => {
     setAppState('generating');
     await generateContent(input);
@@ -140,22 +137,21 @@ function AppMain() {
   };
   const handleSignOut = async () => {
     await signOut();
-    clearConfig();
     resetGeneration();
     setAppState('setup');
   };
   const handleAddPaymentMethod = () => setShowPaymentModal(true);
 
   // ── Determine the visible state ─────────────────────────────────────
+  // Single managed path now: not authed → show sign-in. Authed → app.
   let currentState = appState;
-  const managedButNotAuth = isManaged && !isAuthenticated && !managedLoading;
-  if (managedButNotAuth) {
+  if (!isAuthenticated && !managedLoading) {
     currentState = 'setup';
-  } else if (currentState === 'setup' && isConfigured && (!isManaged || isAuthenticated)) {
+  } else if (currentState === 'setup' && isAuthenticated) {
     currentState = 'input';
   }
 
-  const showHeader = isManaged && isAuthenticated && currentState !== 'setup';
+  const showHeader = isAuthenticated && currentState !== 'setup';
   const hasContent = !!(flashcards && audioScript);
 
   // ── Derive orb props for the persistent SolarFlare ──────────────────
@@ -225,29 +221,28 @@ function AppMain() {
       )}
 
       <main
-        className={`${showHeader ? 'pt-14' : 'pt-8'} pb-12 px-4 lg:px-12 min-h-screen flex items-center`}
+        className={`${showHeader ? 'pt-10' : 'pt-4'} pb-12 px-4 min-h-screen flex flex-col items-center`}
       >
-        <div className="w-full max-w-6xl mx-auto grid lg:grid-cols-[auto_1fr] gap-8 lg:gap-12 items-start lg:items-center">
+        {/* Vertical stack — orb true-centered horizontally, ~25vh from
+            top, content beneath. Same layout on mobile + desktop, just
+            the orb shrinks responsively (handled in OrbStage). */}
+        <div className="w-full flex flex-col items-center gap-10 mt-[12vh]">
           {/* Persistent JARVIS centerpiece — never unmounts. */}
-          <div className="flex justify-center lg:justify-start">
-            <OrbStage
-              state={flareState}
-              progress={ringProgress}
-              caption={orbCaption}
-              inDive={!!parentSnapshot}
-              sectionMarks={currentState === 'content' && audio.hasSections ? audio.sectionCount : undefined}
-              onToggle={handleOrbToggle}
-              disabled={orbDisabled}
-            />
-          </div>
+          <OrbStage
+            state={flareState}
+            progress={ringProgress}
+            caption={orbCaption}
+            inDive={!!parentSnapshot}
+            sectionMarks={currentState === 'content' && audio.hasSections ? audio.sectionCount : undefined}
+            onToggle={handleOrbToggle}
+            disabled={orbDisabled}
+          />
 
           {/* Context band — state-driven content panel. AnimatePresence
               cross-fades on state change without unmounting the orb. */}
-          <div className="relative min-h-[300px]">
+          <div className="relative w-full max-w-2xl px-2 min-h-[200px]">
             <AnimatePresence mode="wait" initial={false}>
-              {currentState === 'setup' && (
-                <SignInBand key="sign-in" onComplete={handleSetupComplete} />
-              )}
+              {currentState === 'setup' && <SignInBand key="sign-in" />}
 
               {currentState === 'input' && (
                 <TopicInputBand

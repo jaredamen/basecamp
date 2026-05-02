@@ -1,5 +1,4 @@
 import { useState, useCallback } from 'react';
-import { useBYOK } from './useBYOK';
 import { AIPromptingService, type FlashcardSet, type AudioScript, type Flashcard } from '../services/aiPrompting';
 import { proxyChat, InsufficientCreditsError } from '../services/managedProxy';
 
@@ -64,7 +63,6 @@ async function callManagedAI(
 }
 
 export function useContentGeneration() {
-  const { config, isManaged } = useBYOK();
   const [state, setState] = useState<GenerationState>({
     isGenerating: false,
     stage: 'idle',
@@ -74,11 +72,6 @@ export function useContentGeneration() {
   const aiService = AIPromptingService.getInstance();
 
   const generateContent = useCallback(async (input: GenerationInput) => {
-    if (!isManaged && !config?.aiProvider) {
-      setState(prev => ({ ...prev, error: 'AI provider not configured' }));
-      return;
-    }
-
     setState({
       isGenerating: true,
       stage: 'fetching',
@@ -103,14 +96,9 @@ export function useContentGeneration() {
       //    leads, substance follows, the listener walks away knowing the
       //    actual content of the source.
       setState(prev => ({ ...prev, stage: 'audio', progress: 35 }));
-      let audioScriptBase: AudioScript;
-      if (isManaged) {
-        const audioPrompt = aiService.getAudioScriptPrompt(content);
-        const audioJson = await callManagedAI(audioPrompt, { temperature: 0.8, maxTokens: 3000 });
-        audioScriptBase = aiService.parseAudioScriptResponse(audioJson);
-      } else {
-        audioScriptBase = await aiService.generateAudioScript(content, config!.aiProvider!);
-      }
+      const audioPrompt = aiService.getAudioScriptPrompt(content);
+      const audioJson = await callManagedAI(audioPrompt, { temperature: 0.8, maxTokens: 3000 });
+      const audioScriptBase: AudioScript = aiService.parseAudioScriptResponse(audioJson);
 
       setState(prev => ({ ...prev, audioScript: audioScriptBase, progress: 65 }));
 
@@ -121,29 +109,14 @@ export function useContentGeneration() {
       //    afterSectionIndex) since cards know which audio section they
       //    came from.
       setState(prev => ({ ...prev, stage: 'flashcards', progress: 80 }));
-      let flashcards: FlashcardSet;
-      let interruptionPoints: import('../types').AudioInterruptionPoint[];
-      if (isManaged) {
-        const flashcardPrompt = aiService.getFlashcardPrompt(content, input.type, audioScriptBase);
-        const flashcardJson = await callManagedAI(flashcardPrompt, { temperature: 0.85 });
-        const parsed = aiService.parseFlashcardResponse(
-          flashcardJson,
-          content,
-          input.type,
-          audioScriptBase.sections.length,
-        );
-        flashcards = parsed.flashcards;
-        interruptionPoints = parsed.interruptionPoints;
-      } else {
-        const parsed = await aiService.generateFlashcards(
-          content,
-          input.type,
-          config!.aiProvider!,
-          audioScriptBase,
-        );
-        flashcards = parsed.flashcards;
-        interruptionPoints = parsed.interruptionPoints;
-      }
+      const flashcardPrompt = aiService.getFlashcardPrompt(content, input.type, audioScriptBase);
+      const flashcardJson = await callManagedAI(flashcardPrompt, { temperature: 0.85 });
+      const { flashcards, interruptionPoints } = aiService.parseFlashcardResponse(
+        flashcardJson,
+        content,
+        input.type,
+        audioScriptBase.sections.length,
+      );
 
       // 3) Merge the LLM-picked interruption points back onto the audio
       //    script. The final AudioScript is the audio + the cards-derived
@@ -180,7 +153,7 @@ export function useContentGeneration() {
         });
       }
     }
-  }, [config, isManaged, aiService]);
+  }, [aiService]);
 
   const reset = useCallback(() => {
     setState({ isGenerating: false, stage: 'idle', progress: 0 });
@@ -236,10 +209,6 @@ export function useContentGeneration() {
      *  parent's audio where the user left off. */
     currentSectionIndex?: number,
   ) => {
-    if (!isManaged && !config?.aiProvider) {
-      setState(prev => ({ ...prev, error: 'AI provider not configured' }));
-      return;
-    }
     const trimmed = selection.trim();
     if (trimmed.length < 2) return;
 
@@ -289,68 +258,23 @@ export function useContentGeneration() {
       // Audio-first dive: same order as the main path. Audio first, then
       // cards-from-audio (which also picks the dive's interruption points).
 
-      // Helper: BYOK direct chat call shared between the two dive steps.
-      const byokCall = async (prompt: string, temperature: number): Promise<string> => {
-        const provider = config!.aiProvider!;
-        const baseURL = provider.baseURL || 'https://api.openai.com/v1';
-        const response = await fetch(`${baseURL}/chat/completions`, {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${provider.apiKey}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            model: provider.model,
-            messages: [{ role: 'user', content: prompt }],
-            temperature,
-            max_tokens: 2000,
-            response_format: { type: 'json_object' },
-          }),
-        });
-        if (!response.ok) throw new Error(`Dive call failed (${response.status})`);
-        const data = await response.json();
-        return data.choices[0].message.content as string;
-      };
-
       // Step 1: dive AUDIO
-      let diveAudioBase: AudioScript;
       const audioPrompt = aiService.getDeepDiveAudioPrompt(trimmed, parentContext);
-      if (isManaged) {
-        const json = await callManagedAI(audioPrompt, { maxTokens: 2000, temperature: 0.8 });
-        diveAudioBase = aiService.parseAudioScriptResponse(json);
-      } else {
-        const json = await byokCall(audioPrompt, 0.8);
-        diveAudioBase = aiService.parseAudioScriptResponse(json);
-      }
+      const audioJson = await callManagedAI(audioPrompt, { maxTokens: 2000, temperature: 0.8 });
+      const diveAudioBase: AudioScript = aiService.parseAudioScriptResponse(audioJson);
 
       setState(prev => ({ ...prev, audioScript: diveAudioBase, progress: 60 }));
 
       // Step 2: dive CARDS (downstream of dive audio; also pick interruption
       // points referencing the dive's sections).
-      let diveCards: FlashcardSet;
-      let diveInterruptionPoints: import('../types').AudioInterruptionPoint[];
       const cardsPrompt = aiService.getDeepDiveFlashcardPrompt(trimmed, parentContext, parentCards, diveAudioBase);
-      if (isManaged) {
-        const json = await callManagedAI(cardsPrompt, { maxTokens: 2000, temperature: 0.85 });
-        const parsed = aiService.parseFlashcardResponse(
-          json,
-          parentContext,
-          'text',
-          diveAudioBase.sections.length,
-        );
-        diveCards = parsed.flashcards;
-        diveInterruptionPoints = parsed.interruptionPoints;
-      } else {
-        const json = await byokCall(cardsPrompt, 0.85);
-        const parsed = aiService.parseFlashcardResponse(
-          json,
-          parentContext,
-          'text',
-          diveAudioBase.sections.length,
-        );
-        diveCards = parsed.flashcards;
-        diveInterruptionPoints = parsed.interruptionPoints;
-      }
+      const cardsJson = await callManagedAI(cardsPrompt, { maxTokens: 2000, temperature: 0.85 });
+      const { flashcards: diveCards, interruptionPoints: diveInterruptionPoints } = aiService.parseFlashcardResponse(
+        cardsJson,
+        parentContext,
+        'text',
+        diveAudioBase.sections.length,
+      );
 
       const diveAudio: AudioScript = { ...diveAudioBase, interruptionPoints: diveInterruptionPoints };
 
@@ -389,7 +313,7 @@ export function useContentGeneration() {
         insufficientCredits: error instanceof InsufficientCreditsError,
       }));
     }
-  }, [config, isManaged, aiService]);
+  }, [aiService]);
 
   /** Pop the dive — restore the parent briefing AND the audio section the
    *  user was on when they triggered the dive, so playback bounces back
@@ -429,11 +353,6 @@ export function useContentGeneration() {
    * history and library entry are unaffected.
    */
   const reframeAudio = useCallback(async () => {
-    if (!isManaged && !config?.aiProvider) {
-      setState(prev => ({ ...prev, error: 'AI provider not configured' }));
-      return;
-    }
-
     // Snapshot what we need before flipping into 'reframing'.
     const snapshot = await new Promise<{
       content: string;
@@ -468,31 +387,7 @@ export function useContentGeneration() {
         snapshot.previousTitle,
       );
 
-      let json: string;
-      if (isManaged) {
-        json = await callManagedAI(prompt, { maxTokens: 3000, temperature: 0.85 });
-      } else {
-        const provider = config!.aiProvider!;
-        const baseURL = provider.baseURL || 'https://api.openai.com/v1';
-        const response = await fetch(`${baseURL}/chat/completions`, {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${provider.apiKey}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            model: provider.model,
-            messages: [{ role: 'user', content: prompt }],
-            temperature: 0.85,
-            max_tokens: 3000,
-            response_format: { type: 'json_object' },
-          }),
-        });
-        if (!response.ok) throw new Error(`Audio re-frame failed (${response.status})`);
-        const data = await response.json();
-        json = data.choices[0].message.content;
-      }
-
+      const json = await callManagedAI(prompt, { maxTokens: 3000, temperature: 0.85 });
       const newAudioScript = aiService.parseAudioScriptResponse(json, snapshot.cards);
 
       setState(prev => ({
@@ -518,7 +413,7 @@ export function useContentGeneration() {
         insufficientCredits: error instanceof InsufficientCreditsError,
       }));
     }
-  }, [config, isManaged, aiService]);
+  }, [aiService]);
 
   return {
     ...state,
@@ -534,7 +429,7 @@ export function useContentGeneration() {
     isInDive: !!state.parentSnapshot,
     /** True when an audio re-frame is in flight — UI can disable the trigger. */
     isReframing: state.stage === 'reframing',
-    isConfigured: isManaged || !!(config?.aiProvider && config?.voiceProvider)
+    isConfigured: true
   };
 }
 
