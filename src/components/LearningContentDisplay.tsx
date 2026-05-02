@@ -61,28 +61,28 @@ export function LearningContentDisplay({
 
   return (
     <div
-      className={`min-h-screen flex flex-col bg-gradient-to-br from-dark-900 via-dark-800 to-dark-900 ${
+      className={`min-h-screen flex flex-col bg-gradient-to-br from-solar-900 via-solar-800 to-solar-900 ${
         inactive ? 'pointer-events-none opacity-50' : ''
       }`}
       aria-hidden={inactive ? true : undefined}
     >
-      <div className="bg-dark-900/95 border-b border-dark-700 px-4 py-3 flex justify-center items-center gap-3">
+      <div className="glass border-b border-solar-gold/15 px-4 py-3 flex justify-center items-center gap-3">
         {isInDive && (
           <button
             onClick={onExitDive}
-            className="text-xs px-3 py-1.5 rounded-full bg-purple-600/20 border border-purple-500/40 text-purple-300 hover:bg-purple-600/30 transition-colors"
+            className="text-xs px-3 py-1.5 rounded-full bg-solar-ember/15 border border-solar-ember/40 text-solar-ember hover:bg-solar-ember/25 transition-colors"
             aria-label="Back to parent briefing"
           >
             ← Back to parent
           </button>
         )}
-        <div className="bg-dark-800/50 rounded-lg p-1 border border-dark-700 inline-flex">
+        <div className="glass rounded-lg p-1 inline-flex">
           <button
             onClick={() => setViewMode('audio')}
             className={`px-5 py-2 rounded-md text-sm font-medium transition-all ${
               viewMode === 'audio'
-                ? 'bg-blue-600 text-white shadow'
-                : 'text-dark-300 hover:text-white'
+                ? 'bg-solar-gold text-solar-900 shadow'
+                : 'text-solar-400 hover:text-solar-100'
             }`}
           >
             Audio
@@ -91,8 +91,8 @@ export function LearningContentDisplay({
             onClick={() => setViewMode('flashcards')}
             className={`px-5 py-2 rounded-md text-sm font-medium transition-all ${
               viewMode === 'flashcards'
-                ? 'bg-blue-600 text-white shadow'
-                : 'text-dark-300 hover:text-white'
+                ? 'bg-solar-gold text-solar-900 shadow'
+                : 'text-solar-400 hover:text-solar-100'
             }`}
           >
             Study Cards

@@ -38,23 +38,23 @@ export function LibraryView({ onOpen, onBack }: LibraryViewProps) {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-dark-900 via-dark-800 to-dark-900 py-8 px-6">
+    <div className="min-h-screen bg-gradient-to-br from-solar-900 via-solar-800 to-solar-900 py-8 px-6">
       <div className="max-w-3xl mx-auto space-y-6">
         <div className="flex items-center justify-between">
           <button
             onClick={onBack}
-            className="flex items-center text-blue-400 hover:text-blue-300 transition-colors text-sm font-medium"
+            className="flex items-center text-solar-gold hover:text-solar-amber transition-colors text-sm font-medium"
           >
             ← Back
           </button>
-          <h1 className="text-2xl font-bold text-white">Library</h1>
-          <span className="text-sm text-dark-400">{briefings.length} saved</span>
+          <h1 className="text-2xl font-bold text-solar-100">Library</h1>
+          <span className="text-sm text-solar-500 font-mono">{briefings.length} saved</span>
         </div>
 
         {briefings.length === 0 ? (
           <div className="text-center py-20 space-y-3">
-            <p className="text-dark-300 text-lg">No saved briefings yet.</p>
-            <p className="text-dark-400 text-sm">
+            <p className="text-solar-400 text-lg">No saved briefings yet.</p>
+            <p className="text-solar-500 text-sm">
               Generate one and it'll show up here automatically.
             </p>
           </div>
@@ -63,15 +63,15 @@ export function LibraryView({ onOpen, onBack }: LibraryViewProps) {
             {briefings.map((b) => (
               <li
                 key={b.id}
-                className="bg-dark-800/60 border border-dark-700 rounded-xl p-4 hover:border-blue-500/40 hover:bg-dark-800 transition-colors"
+                className="glass rounded-xl p-4 hover:border-solar-gold/40 transition-colors"
               >
                 <button
                   onClick={() => onOpen(b)}
                   className="w-full text-left"
                   aria-label={`Open ${b.title}`}
                 >
-                  <h2 className="text-lg font-semibold text-white truncate">{b.title}</h2>
-                  <div className="flex items-center gap-3 mt-1 text-sm text-dark-400">
+                  <h2 className="text-lg font-semibold text-solar-100 truncate">{b.title}</h2>
+                  <div className="flex items-center gap-3 mt-1 text-sm text-solar-500 font-mono">
                     <span>{sourceLabel(b.source)}</span>
                     <span>•</span>
                     <span>{b.flashcards.cards.length} card{b.flashcards.cards.length === 1 ? '' : 's'}</span>
@@ -82,7 +82,7 @@ export function LibraryView({ onOpen, onBack }: LibraryViewProps) {
                 <div className="mt-3 flex justify-end">
                   <button
                     onClick={() => handleDelete(b.id)}
-                    className="text-xs text-dark-500 hover:text-red-400 transition-colors"
+                    className="text-xs text-solar-500 hover:text-solar-ember transition-colors"
                     aria-label={`Delete ${b.title}`}
                   >
                     Delete

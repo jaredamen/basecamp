@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { ArrowLeft, Play, Pause, Loader2 } from 'lucide-react';
 import type { AudioBriefing, AudioInterruptionPoint } from '../types';
 import type { Flashcard } from '../services/aiPrompting';
 import { useAudioPlayer } from '../hooks/useAudioPlayer';
@@ -83,31 +84,6 @@ function chooseInterruptionPoints(
     cardId: ranked[idx % ranked.length].card.id,
   }));
 }
-
-const ArrowBackIcon: React.FC<{ className?: string }> = ({ className }) => (
-  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-  </svg>
-);
-
-const PlayIcon: React.FC<{ className?: string }> = ({ className }) => (
-  <svg className={className} fill="currentColor" viewBox="0 0 24 24">
-    <path d="M8 5v14l11-7z"/>
-  </svg>
-);
-
-const PauseIcon: React.FC<{ className?: string }> = ({ className }) => (
-  <svg className={className} fill="currentColor" viewBox="0 0 24 24">
-    <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>
-  </svg>
-);
-
-const SpinnerIcon: React.FC<{ className?: string }> = ({ className }) => (
-  <svg className={className} fill="none" viewBox="0 0 24 24">
-    <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="3" strokeOpacity="0.25" />
-    <path d="M21 12a9 9 0 0 0-9-9" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
-  </svg>
-);
 
 const formatTime = (time: number): string => {
   const minutes = Math.floor(time / 60);
@@ -503,13 +479,13 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
   return (
     <div className="flex-1 flex flex-col">
       {/* Header */}
-      <div className="bg-dark-800 px-4 py-3 border-b border-dark-700">
+      <div className="glass px-4 py-3 border-b border-solar-gold/15">
         <div className="flex items-center justify-between mb-3 gap-2">
           <button
             onClick={onBack}
-            className="flex items-center text-blue-400 hover:text-blue-300 transition-colors"
+            className="flex items-center text-solar-gold hover:text-solar-amber transition-colors"
           >
-            <ArrowBackIcon className="w-5 h-5 mr-1" />
+            <ArrowLeft className="w-5 h-5 mr-1" />
             <span className="text-sm font-medium">Back</span>
           </button>
           <div className="flex items-center gap-2">
@@ -518,7 +494,7 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
                 onClick={onReframeAudio}
                 disabled={isReframing}
                 title="Re-frame this lesson with a different analogy"
-                className="text-xs text-blue-300 hover:text-blue-200 disabled:text-dark-500 disabled:cursor-not-allowed px-2.5 py-1 rounded border border-blue-500/40 hover:border-blue-400/60 disabled:border-dark-700 hover:bg-blue-500/10 disabled:hover:bg-transparent transition-colors flex items-center gap-1"
+                className="text-xs text-solar-gold hover:text-solar-amber disabled:text-solar-500 disabled:cursor-not-allowed px-2.5 py-1 rounded border border-solar-gold/40 hover:border-solar-gold/60 disabled:border-solar-700 hover:bg-solar-gold/10 disabled:hover:bg-transparent transition-colors flex items-center gap-1"
               >
                 <span>💡</span>
                 <span>{isReframing ? 'Re-framing…' : 'Different analogy'}</span>
@@ -526,17 +502,17 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
             )}
             <button
               onClick={() => setShowScript(!showScript)}
-              className="text-xs text-dark-400 hover:text-dark-200 px-2 py-1 rounded border border-dark-600 hover:border-dark-500"
+              className="text-xs text-solar-500 hover:text-solar-100 px-2 py-1 rounded border border-solar-gold/15 hover:border-solar-gold/30"
             >
               {showScript ? 'Hide Script' : 'Show Script'}
             </button>
           </div>
         </div>
 
-        <h2 className="text-lg font-semibold text-dark-100 mb-1">
+        <h2 className="text-lg font-semibold text-solar-100 mb-1">
           {briefing.title}
         </h2>
-        <div className="flex items-center space-x-4 text-sm text-dark-400">
+        <div className="flex items-center space-x-4 text-sm text-solar-500 font-mono">
           <span>{formatDate(briefing.created_at)}</span>
           {briefing.source && (() => {
             try {
@@ -561,11 +537,11 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
       </div>
 
       {voiceError && (
-        <div className="bg-orange-600/20 border-b border-orange-600/30 text-orange-300 text-sm px-4 py-3 flex items-center justify-between gap-4">
+        <div className="bg-solar-ember/15 border-b border-solar-ember/30 text-solar-ember text-sm px-4 py-3 flex items-center justify-between gap-4">
           <span className="flex-1">{voiceError}</span>
           <button
             onClick={() => setVoiceError(null)}
-            className="text-orange-200 hover:text-white text-xs underline-offset-2 hover:underline"
+            className="text-solar-ember hover:text-solar-100 text-xs underline-offset-2 hover:underline"
             aria-label="Dismiss voice notice"
           >
             Dismiss
@@ -577,8 +553,8 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
           for the audio re-frame flow — the deck stays the same, only the
           narration is being regenerated, so a banner is enough context. */}
       {isReframing && (
-        <div className="bg-blue-600/15 border-b border-blue-500/30 text-blue-200 text-sm px-4 py-3 flex items-center gap-3">
-          <span className="inline-block w-4 h-4 border-2 border-blue-300 border-t-transparent rounded-full animate-spin flex-shrink-0" />
+        <div className="bg-solar-gold/10 border-b border-solar-gold/30 text-solar-gold text-sm px-4 py-3 flex items-center gap-3">
+          <Loader2 className="w-4 h-4 animate-spin flex-shrink-0" />
           <span className="flex-1">🎵 Re-framing this lesson with a fresh analogy…</span>
         </div>
       )}
@@ -588,7 +564,7 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
         {showScript ? (
           <div className="p-4 pb-32">
             <div className="prose prose-invert prose-sm max-w-none">
-              <div className="whitespace-pre-wrap text-dark-200 leading-relaxed">
+              <div className="whitespace-pre-wrap text-solar-100/85 leading-relaxed">
                 {briefing.script}
               </div>
             </div>
@@ -597,13 +573,13 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
           <div className="flex-1 flex flex-col items-center justify-center p-8 pb-32">
             {briefing.audio_file && playerState.duration > 0 && (
               <div className="w-full max-w-sm mb-6">
-                <div className="bg-dark-700 rounded-full h-2 mb-2">
+                <div className="bg-solar-700 rounded-full h-2 mb-2">
                   <div
-                    className="bg-blue-500 h-2 rounded-full transition-all duration-300"
+                    className="bg-gradient-to-r from-solar-gold to-solar-amber h-2 rounded-full transition-all duration-300"
                     style={{ width: `${(playerState.currentTime / playerState.duration) * 100}%` }}
                   />
                 </div>
-                <div className="flex justify-between text-xs text-dark-400">
+                <div className="flex justify-between text-xs text-solar-500 font-mono">
                   <span>{formatTime(playerState.currentTime)}</span>
                   <span>{formatTime(playerState.duration)}</span>
                 </div>
@@ -611,13 +587,13 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
             )}
             {hasSections && sections && !briefing.audio_file && (
               <div className="w-full max-w-md mb-6">
-                <div className="bg-dark-700 rounded-full h-2">
+                <div className="bg-solar-700 rounded-full h-2">
                   <div
-                    className="bg-blue-500 h-2 rounded-full transition-all duration-500"
+                    className="bg-gradient-to-r from-solar-gold to-solar-amber h-2 rounded-full transition-all duration-500"
                     style={{ width: `${((sectionIndex + (isSectionPlaying ? 0.5 : 0)) / sections.length) * 100}%` }}
                   />
                 </div>
-                <div className="flex justify-between text-xs text-dark-400 mt-2">
+                <div className="flex justify-between text-xs text-solar-500 font-mono mt-2">
                   <span>{statusLabel}</span>
                   <span>{interruptionPoints.length} checkpoint{interruptionPoints.length === 1 ? '' : 's'}</span>
                 </div>
@@ -628,20 +604,20 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
       </div>
 
       {/* Play/Pause Button */}
-      <div className="bg-dark-800 border-t border-dark-700 p-4 pb-20">
+      <div className="glass border-t border-solar-gold/15 p-4 pb-20">
         <div className="audio-player-controls">
           <button
             onClick={handlePlayPause}
             disabled={!!pendingCard || isFetchingAudio}
-            className="p-4 bg-blue-600 hover:bg-blue-700 disabled:bg-dark-700 disabled:cursor-not-allowed rounded-full text-white transition-colors"
+            className="p-4 bg-solar-gold hover:bg-solar-amber disabled:bg-solar-700 disabled:text-solar-500 disabled:cursor-not-allowed rounded-full text-solar-900 shadow-lg shadow-solar-gold/30 transition-colors"
             aria-label={isCurrentlyPlaying ? 'Pause' : isFetchingAudio ? 'Loading' : 'Play'}
           >
             {isFetchingAudio ? (
-              <SpinnerIcon className="w-8 h-8 animate-spin" />
+              <Loader2 className="w-8 h-8 animate-spin" />
             ) : isCurrentlyPlaying ? (
-              <PauseIcon className="w-8 h-8" />
+              <Pause className="w-8 h-8" fill="currentColor" />
             ) : (
-              <PlayIcon className="w-8 h-8 ml-1" />
+              <Play className="w-8 h-8 ml-1" fill="currentColor" />
             )}
           </button>
         </div>
@@ -771,18 +747,18 @@ const FlashcardOverlay: React.FC<FlashcardOverlayProps> = ({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-dark-900/85 backdrop-blur-md p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-solar-900/85 backdrop-blur-md p-4"
       role="dialog"
       aria-modal="true"
       aria-label="Active recall flashcard"
     >
-      <div className="w-full max-w-lg bg-dark-800 border border-purple-500/30 rounded-2xl p-6 shadow-2xl">
-        <div className="flex items-center gap-2 text-purple-400 text-xs font-semibold uppercase tracking-wider mb-3">
-          <span className="inline-block w-2 h-2 rounded-full bg-purple-400 animate-pulse" />
+      <div className="w-full max-w-lg glass-strong rounded-2xl p-6">
+        <div className="flex items-center gap-2 text-solar-gold text-xs font-semibold uppercase tracking-wider mb-3">
+          <span className="inline-block w-2 h-2 rounded-full bg-solar-gold animate-pulse" />
           {revealed ? 'Answer' : 'Recall'}
         </div>
 
-        <p className="text-lg font-semibold text-white leading-snug mb-5">{card.front}</p>
+        <p className="text-lg font-semibold text-solar-100 leading-snug mb-5">{card.front}</p>
 
         {!revealed ? (
           mode === 'mcq' && hasMCQ && card.choices ? (
@@ -792,11 +768,11 @@ const FlashcardOverlay: React.FC<FlashcardOverlayProps> = ({
                 const isPicked = mcqSelection === idx;
                 const isCorrectKey = idx === card.correctIndex;
                 const answered = mcqSelection !== null;
-                let cls = 'border-dark-600 bg-dark-700 text-dark-100 hover:border-purple-500/40 hover:bg-purple-500/10';
+                let cls = 'border-solar-gold/15 bg-solar-700 text-solar-100 hover:border-solar-gold/40 hover:bg-solar-gold/10';
                 if (answered) {
-                  if (isCorrectKey) cls = 'border-green-400/60 bg-green-500/15 text-white';
-                  else if (isPicked) cls = 'border-orange-400/60 bg-orange-500/15 text-white';
-                  else cls = 'border-dark-700 bg-dark-700/60 text-dark-400 opacity-60';
+                  if (isCorrectKey) cls = 'border-green-400/60 bg-green-500/15 text-solar-100';
+                  else if (isPicked) cls = 'border-solar-ember/60 bg-solar-ember/15 text-solar-100';
+                  else cls = 'border-solar-gold/10 bg-solar-700/50 text-solar-500 opacity-60';
                 }
                 return (
                   <button
@@ -805,19 +781,19 @@ const FlashcardOverlay: React.FC<FlashcardOverlayProps> = ({
                     disabled={answered}
                     className={`w-full text-left px-4 py-3 rounded-xl border-2 text-sm flex items-center gap-3 transition-all ${cls}`}
                   >
-                    <span className="w-7 h-7 rounded-lg bg-dark-600 text-dark-200 font-bold text-xs flex items-center justify-center flex-shrink-0">
+                    <span className="w-7 h-7 rounded-lg bg-solar-600 text-solar-100 font-bold font-mono text-xs flex items-center justify-center flex-shrink-0">
                       {String.fromCharCode(65 + idx)}
                     </span>
                     <span className="flex-1">{choice}</span>
                     {answered && isCorrectKey && <span className="text-green-400 font-bold">✓</span>}
-                    {answered && isPicked && !isCorrectKey && <span className="text-orange-400 font-bold">✗</span>}
+                    {answered && isPicked && !isCorrectKey && <span className="text-solar-ember font-bold">✗</span>}
                   </button>
                 );
               })}
               {mcqSelection === null && (
                 <button
                   onClick={() => setMode('type')}
-                  className="w-full text-center text-xs text-blue-400 hover:text-blue-300 underline-offset-2 hover:underline pt-1"
+                  className="w-full text-center text-xs text-solar-gold hover:text-solar-amber underline-offset-2 hover:underline pt-1"
                 >
                   Or type your full answer
                 </button>
@@ -831,26 +807,26 @@ const FlashcardOverlay: React.FC<FlashcardOverlayProps> = ({
                 onChange={(e) => setStudentAnswer(e.target.value)}
                 placeholder="Type what you think the answer is (optional)…"
                 rows={2}
-                className="w-full px-3 py-2 bg-dark-900/60 border border-dark-700 rounded-lg text-white text-sm focus:border-purple-500 focus:ring-1 focus:ring-purple-500 outline-none resize-y"
+                className="w-full px-3 py-2 bg-solar-900/60 border border-solar-gold/20 rounded-lg text-solar-100 text-sm focus:border-solar-gold focus:ring-1 focus:ring-solar-gold outline-none resize-y"
                 disabled={grading}
               />
               {verdictBadge && verdict && (
                 <div className={`rounded-lg border px-3 py-2 ${verdictBadge.bg}`}>
                   <div className={`text-xs font-semibold ${verdictBadge.text}`}>{verdictBadge.label}</div>
-                  <p className="text-xs text-dark-200 mt-0.5">{verdict.feedback}</p>
+                  <p className="text-xs text-solar-100/85 mt-0.5">{verdict.feedback}</p>
                 </div>
               )}
               <div className="flex gap-2">
                 <button
                   onClick={handleCheck}
                   disabled={!studentAnswer.trim() || grading}
-                  className="flex-1 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:bg-dark-700 disabled:text-dark-500 disabled:cursor-not-allowed text-white font-semibold transition-colors"
+                  className="flex-1 py-2.5 rounded-xl bg-solar-gold hover:bg-solar-amber disabled:bg-solar-700 disabled:text-solar-500 disabled:cursor-not-allowed text-solar-900 font-semibold transition-colors"
                 >
                   {grading ? 'Checking…' : 'Check my answer'}
                 </button>
                 <button
                   onClick={onReveal}
-                  className="px-4 py-2.5 rounded-xl bg-dark-700 hover:bg-dark-600 text-dark-100 font-medium transition-colors"
+                  className="px-4 py-2.5 rounded-xl bg-solar-700 hover:bg-solar-600 text-solar-100 font-medium transition-colors"
                 >
                   Show
                 </button>
@@ -858,7 +834,7 @@ const FlashcardOverlay: React.FC<FlashcardOverlayProps> = ({
               {hasMCQ && (
                 <button
                   onClick={() => setMode('mcq')}
-                  className="w-full text-center text-xs text-blue-400 hover:text-blue-300 underline-offset-2 hover:underline"
+                  className="w-full text-center text-xs text-solar-gold hover:text-solar-amber underline-offset-2 hover:underline"
                 >
                   Or pick from multiple choice
                 </button>
@@ -867,12 +843,12 @@ const FlashcardOverlay: React.FC<FlashcardOverlayProps> = ({
           )
         ) : (
           <>
-            <div className="rounded-xl bg-dark-700/60 border border-dark-600 p-4 space-y-3">
-              <p className="text-base text-dark-100 leading-relaxed">{card.back}</p>
+            <div className="rounded-xl bg-solar-700/60 border border-solar-gold/15 p-4 space-y-3">
+              <p className="text-base text-solar-100 leading-relaxed">{card.back}</p>
               {card.explanation && (
-                <div className="pt-3 border-t border-dark-700">
-                  <p className="text-sm text-dark-300 italic leading-relaxed">{card.explanation}</p>
-                  {analogyError && <p className="text-xs text-orange-400 mt-2">{analogyError}</p>}
+                <div className="pt-3 border-t border-solar-gold/15">
+                  <p className="text-sm text-solar-400 italic leading-relaxed">{card.explanation}</p>
+                  {analogyError && <p className="text-xs text-solar-ember mt-2">{analogyError}</p>}
                 </div>
               )}
             </div>
@@ -884,11 +860,11 @@ const FlashcardOverlay: React.FC<FlashcardOverlayProps> = ({
               <button
                 onClick={handleRefresh}
                 disabled={refreshing}
-                className="w-full mt-4 px-4 py-3 rounded-xl bg-blue-600/15 border border-blue-500/40 text-blue-300 hover:bg-blue-600/25 disabled:bg-dark-700 disabled:text-dark-500 disabled:cursor-not-allowed font-medium transition-colors flex items-center justify-center gap-2"
+                className="w-full mt-4 px-4 py-3 rounded-xl bg-solar-gold/15 border border-solar-gold/40 text-solar-gold hover:bg-solar-gold/25 disabled:bg-solar-700 disabled:text-solar-500 disabled:cursor-not-allowed font-medium transition-colors flex items-center justify-center gap-2"
               >
                 {refreshing ? (
                   <>
-                    <span className="inline-block w-4 h-4 border-2 border-blue-300 border-t-transparent rounded-full animate-spin" />
+                    <Loader2 className="inline-block w-4 h-4 animate-spin" />
                     Generating a fresh parable…
                   </>
                 ) : (
@@ -902,7 +878,7 @@ const FlashcardOverlay: React.FC<FlashcardOverlayProps> = ({
 
             {onDeepDive && (
               <div className="mt-4 space-y-2">
-                <div className="text-xs text-dark-400">🤿 Dive deeper into:</div>
+                <div className="text-xs text-solar-500">🤿 Dive deeper into:</div>
                 <div className="flex flex-wrap gap-2">
                   {(card.keyTerms && card.keyTerms.length > 0
                     ? card.keyTerms
@@ -911,7 +887,7 @@ const FlashcardOverlay: React.FC<FlashcardOverlayProps> = ({
                     <button
                       key={idx}
                       onClick={() => onDeepDive(term)}
-                      className="text-xs px-3 py-1.5 rounded-full bg-purple-500/15 border border-purple-500/40 text-purple-200 hover:bg-purple-500/25 hover:border-purple-400/60 transition-colors"
+                      className="text-xs px-3 py-1.5 rounded-full bg-solar-amber/15 border border-solar-amber/40 text-solar-amber hover:bg-solar-amber/25 hover:border-solar-amber/60 transition-colors"
                     >
                       {term}
                     </button>
@@ -923,7 +899,7 @@ const FlashcardOverlay: React.FC<FlashcardOverlayProps> = ({
             <div className="flex gap-3 mt-5">
               <button
                 onClick={() => onVerdict('reviewAgain')}
-                className="flex-1 py-3 rounded-xl bg-orange-600/20 border border-orange-600/40 text-orange-300 hover:bg-orange-600/30 font-semibold transition-colors"
+                className="flex-1 py-3 rounded-xl bg-solar-ember/20 border border-solar-ember/40 text-solar-ember hover:bg-solar-ember/30 font-semibold transition-colors"
               >
                 👎 Review again
               </button>

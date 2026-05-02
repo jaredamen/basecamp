@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Loader2 } from 'lucide-react';
 import type { FlashcardSet } from '../services/aiPrompting';
 import { useFlashcardAI } from '../hooks/useFlashcardAI';
 import { briefingLibrary } from '../services/briefingLibrary';
@@ -104,21 +105,21 @@ export function FlashcardDisplay({
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-dark-900 via-dark-800 to-dark-900 py-8 px-6">
+    <div className="min-h-screen bg-gradient-to-br from-solar-900 via-solar-800 to-solar-900 py-8 px-6">
       <div className="max-w-2xl mx-auto space-y-6">
         {/* Header */}
         <div className="text-center space-y-4">
-          <h1 className="text-3xl font-bold text-white">{flashcardSet.title}</h1>
-          <p className="text-dark-300">{flashcardSet.description}</p>
+          <h1 className="text-3xl font-bold text-solar-100">{flashcardSet.title}</h1>
+          <p className="text-solar-400">{flashcardSet.description}</p>
 
           <div className="max-w-md mx-auto">
-            <div className="flex justify-between text-sm text-dark-400 mb-2">
+            <div className="flex justify-between text-sm text-solar-500 font-mono mb-2">
               <span>Card {currentIndex + 1} of {flashcardSet.cards.length}</span>
               <span>{Math.round(progress)}% complete</span>
             </div>
-            <div className="w-full bg-dark-700 rounded-full h-2">
+            <div className="w-full bg-solar-700 rounded-full h-2">
               <div
-                className="bg-gradient-to-r from-blue-600 to-purple-600 h-2 rounded-full transition-all duration-300"
+                className="bg-gradient-to-r from-solar-gold to-solar-amber h-2 rounded-full transition-all duration-300"
                 style={{ width: `${progress}%` }}
               />
             </div>
@@ -126,17 +127,17 @@ export function FlashcardDisplay({
         </div>
 
         {/* Card body */}
-        <div className="bg-dark-800/50 border border-dark-700 rounded-xl p-8 min-h-[420px]">
+        <div className="glass rounded-xl p-8 min-h-[420px]">
           {!isFlipped ? (
             // ── Front: question + optional type-the-answer input ─────────
             <div className="flex flex-col justify-between h-full min-h-[360px] gap-6">
               <div className="space-y-2">
-                <div className="text-xs uppercase tracking-wider text-blue-400 font-semibold">Question</div>
-                <p className="text-xl font-medium text-white leading-relaxed">{currentCard.front}</p>
+                <div className="text-xs uppercase tracking-wider text-solar-gold font-semibold">Question</div>
+                <p className="text-xl font-medium text-solar-100 leading-relaxed">{currentCard.front}</p>
               </div>
 
               <div className="space-y-3">
-                <label className="block text-sm text-dark-300">
+                <label className="block text-sm text-solar-400">
                   Try to recall the answer (optional — typing forces active recall):
                 </label>
                 <textarea
@@ -144,7 +145,7 @@ export function FlashcardDisplay({
                   onChange={(e) => setStudentAnswer(e.target.value)}
                   placeholder="Type what you think the answer is, then click Check…"
                   rows={3}
-                  className="w-full px-4 py-3 bg-dark-900/60 border border-dark-700 rounded-lg text-white text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none resize-y"
+                  className="w-full px-4 py-3 bg-solar-900/60 border border-solar-gold/20 rounded-lg text-solar-100 text-sm focus:border-solar-gold focus:ring-1 focus:ring-solar-gold outline-none resize-y"
                   disabled={grading}
                 />
 
@@ -153,7 +154,7 @@ export function FlashcardDisplay({
                     <div className={`text-sm font-semibold ${VERDICT_STYLE[verdict.verdict].text}`}>
                       {VERDICT_STYLE[verdict.verdict].label}
                     </div>
-                    <p className="text-sm text-dark-200 mt-1">{verdict.feedback}</p>
+                    <p className="text-sm text-solar-100/85 mt-1">{verdict.feedback}</p>
                   </div>
                 )}
 
@@ -161,13 +162,13 @@ export function FlashcardDisplay({
                   <button
                     onClick={handleCheckAnswer}
                     disabled={!studentAnswer.trim() || grading}
-                    className="flex-1 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:bg-dark-700 disabled:text-dark-500 disabled:cursor-not-allowed text-white rounded-lg font-medium transition-colors"
+                    className="flex-1 px-5 py-2.5 bg-solar-gold hover:bg-solar-amber disabled:bg-solar-700 disabled:text-solar-500 disabled:cursor-not-allowed text-solar-900 rounded-lg font-medium transition-colors"
                   >
                     {grading ? 'Checking…' : 'Check my answer'}
                   </button>
                   <button
                     onClick={() => setIsFlipped(true)}
-                    className="px-5 py-2.5 bg-dark-700 hover:bg-dark-600 text-dark-100 rounded-lg font-medium transition-colors"
+                    className="px-5 py-2.5 bg-solar-700 hover:bg-solar-600 text-solar-100 rounded-lg font-medium transition-colors"
                   >
                     Show answer
                   </button>
@@ -179,14 +180,14 @@ export function FlashcardDisplay({
             <div className="space-y-5">
               <div>
                 <div className="text-xs uppercase tracking-wider text-green-400 font-semibold">Answer</div>
-                <p className="mt-2 text-lg text-white leading-relaxed">{currentCard.back}</p>
+                <p className="mt-2 text-lg text-solar-100 leading-relaxed">{currentCard.back}</p>
               </div>
 
               {currentCard.explanation && (
-                <div className="bg-blue-900/20 border border-blue-800/30 rounded-lg p-4 space-y-3">
-                  <h4 className="text-sm font-semibold text-blue-300">Remember it like this</h4>
-                  <p className="text-dark-200 text-sm leading-relaxed">{currentCard.explanation}</p>
-                  {analogyError && <p className="text-xs text-orange-400">{analogyError}</p>}
+                <div className="bg-solar-gold/10 border border-solar-gold/25 rounded-lg p-4 space-y-3">
+                  <h4 className="text-sm font-semibold text-solar-gold">Remember it like this</h4>
+                  <p className="text-solar-100/85 text-sm leading-relaxed">{currentCard.explanation}</p>
+                  {analogyError && <p className="text-xs text-solar-ember">{analogyError}</p>}
                 </div>
               )}
 
@@ -198,11 +199,11 @@ export function FlashcardDisplay({
                 <button
                   onClick={handleRefreshAnalogy}
                   disabled={refreshingAnalogy}
-                  className="w-full px-4 py-3 rounded-xl bg-blue-600/15 border border-blue-500/40 text-blue-300 hover:bg-blue-600/25 disabled:bg-dark-700 disabled:text-dark-500 disabled:cursor-not-allowed font-medium transition-colors flex items-center justify-center gap-2"
+                  className="w-full px-4 py-3 rounded-xl bg-solar-gold/15 border border-solar-gold/40 text-solar-gold hover:bg-solar-gold/25 disabled:bg-solar-700 disabled:text-solar-500 disabled:cursor-not-allowed font-medium transition-colors flex items-center justify-center gap-2"
                 >
                   {refreshingAnalogy ? (
                     <>
-                      <span className="inline-block w-4 h-4 border-2 border-blue-300 border-t-transparent rounded-full animate-spin" />
+                      <Loader2 className="inline-block w-4 h-4 animate-spin" />
                       Generating a fresh parable…
                     </>
                   ) : (
@@ -218,7 +219,7 @@ export function FlashcardDisplay({
                   rather than diving on the whole card. Falls back to a single
                   chip with the card's `front` if the LLM didn't emit keyTerms. */}
               <div className="space-y-2">
-                <div className="text-xs text-dark-400">🤿 Dive deeper into:</div>
+                <div className="text-xs text-solar-500">🤿 Dive deeper into:</div>
                 <div className="flex flex-wrap gap-2">
                   {(currentCard.keyTerms && currentCard.keyTerms.length > 0
                     ? currentCard.keyTerms
@@ -227,7 +228,7 @@ export function FlashcardDisplay({
                     <button
                       key={idx}
                       onClick={() => onDeepDive(term)}
-                      className="text-xs px-3 py-1.5 rounded-full bg-purple-500/15 border border-purple-500/40 text-purple-200 hover:bg-purple-500/25 hover:border-purple-400/60 transition-colors"
+                      className="text-xs px-3 py-1.5 rounded-full bg-solar-amber/15 border border-solar-amber/40 text-solar-amber hover:bg-solar-amber/25 hover:border-solar-amber/60 transition-colors"
                     >
                       {term}
                     </button>
@@ -243,7 +244,7 @@ export function FlashcardDisplay({
           <button
             onClick={() => setCurrentIndex(prev => Math.max(prev - 1, 0))}
             disabled={currentIndex === 0}
-            className="px-5 py-2 bg-dark-700 text-white rounded-lg hover:bg-dark-600 disabled:bg-dark-800 disabled:text-dark-500 disabled:cursor-not-allowed transition-colors"
+            className="px-5 py-2 bg-solar-700 text-solar-100 rounded-lg hover:bg-solar-600 disabled:bg-solar-800 disabled:text-solar-500 disabled:cursor-not-allowed transition-colors"
           >
             ← Prev
           </button>
@@ -252,7 +253,7 @@ export function FlashcardDisplay({
             <div className="flex gap-2 flex-1 justify-center">
               <button
                 onClick={() => advance('reviewAgain')}
-                className="px-5 py-2 bg-orange-600/20 border border-orange-600/40 text-orange-300 hover:bg-orange-600/30 rounded-lg font-medium transition-colors"
+                className="px-5 py-2 bg-solar-ember/20 border border-solar-ember/40 text-solar-ember hover:bg-solar-ember/30 rounded-lg font-medium transition-colors"
               >
                 👎 Review again
               </button>
@@ -266,7 +267,7 @@ export function FlashcardDisplay({
           ) : (
             <button
               onClick={() => setIsFlipped(true)}
-              className="flex-1 max-w-[160px] px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
+              className="flex-1 max-w-[160px] px-5 py-2 bg-solar-gold hover:bg-solar-amber text-solar-900 rounded-lg font-medium transition-colors"
             >
               Show answer
             </button>
@@ -275,7 +276,7 @@ export function FlashcardDisplay({
           <button
             onClick={() => setCurrentIndex(prev => Math.min(prev + 1, flashcardSet.cards.length - 1))}
             disabled={isLastCard}
-            className="px-5 py-2 bg-dark-700 text-white rounded-lg hover:bg-dark-600 disabled:bg-dark-800 disabled:text-dark-500 disabled:cursor-not-allowed transition-colors"
+            className="px-5 py-2 bg-solar-700 text-solar-100 rounded-lg hover:bg-solar-600 disabled:bg-solar-800 disabled:text-solar-500 disabled:cursor-not-allowed transition-colors"
           >
             Next →
           </button>
