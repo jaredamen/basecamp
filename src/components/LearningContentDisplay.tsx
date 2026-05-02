@@ -12,7 +12,17 @@ interface LearningContentDisplayProps {
   /** True when the user is inside a recursive dive. Shows a "back to parent"
    *  pill at the top so they can return without losing the parent briefing. */
   isInDive: boolean;
-  onDeepDive: (selection: string) => void;
+  /** Section the AudioPlayer should start at on next briefing-change. Set
+   *  by useContentGeneration on dive exit so the parent's audio resumes
+   *  where the user left off. Undefined = start at section 0 (default). */
+  audioStartSectionIndex?: number;
+  /** Called by AudioPlayer once it has consumed `audioStartSectionIndex`
+   *  so the parent can clear it (otherwise re-renders would keep snapping
+   *  back to that index). */
+  onAudioStartSectionConsumed?: () => void;
+  /** Dive trigger. AudioPlayer passes the user's current section so the
+   *  parent's playback can be restored on exit. */
+  onDeepDive: (selection: string, currentSectionIndex?: number) => void;
   onExitDive: () => void;
   onAnalogyUpdated: (cardId: string, newExplanation: string) => void;
   /** Re-roll the audio briefing with a fresh analogy framing while keeping
@@ -28,6 +38,8 @@ export function LearningContentDisplay({
   audioScript,
   originalContent,
   isInDive,
+  audioStartSectionIndex,
+  onAudioStartSectionConsumed,
   onDeepDive,
   onExitDive,
   onAnalogyUpdated,
@@ -86,6 +98,8 @@ export function LearningContentDisplay({
             }}
             cards={flashcards.cards}
             parentContent={originalContent}
+            initialSectionIndex={audioStartSectionIndex}
+            onInitialSectionConsumed={onAudioStartSectionConsumed}
             onDeepDive={onDeepDive}
             onAnalogyUpdated={onAnalogyUpdated}
             onReframeAudio={onReframeAudio}

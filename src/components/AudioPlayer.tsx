@@ -18,8 +18,17 @@ interface AudioPlayerProps {
   /** Source text the briefing was built from. Used by the FlashcardOverlay
    *  for analogy refresh + dive triggering. Empty string is fine. */
   parentContent?: string;
-  /** Trigger a recursive dive on a topic from inside an interruption flashcard. */
-  onDeepDive?: (selection: string) => void;
+  /** Section index to start at on briefing-change. Used by the dive-exit
+   *  flow to bounce the listener back to where they were when they dove.
+   *  Undefined / 0 = start at the beginning. */
+  initialSectionIndex?: number;
+  /** Called once after the player has consumed `initialSectionIndex`, so
+   *  the caller can clear it. Without this clearance, subsequent re-renders
+   *  would keep snapping playback back to the saved index. */
+  onInitialSectionConsumed?: () => void;
+  /** Trigger a recursive dive. AudioPlayer passes the section the user was
+   *  on, so the parent can store it for resume on exit. */
+  onDeepDive?: (selection: string, currentSectionIndex?: number) => void;
   /** Replace one card's analogy with new text (called after a successful
    *  regeneration via useFlashcardAI). */
   onAnalogyUpdated?: (cardId: string, newExplanation: string) => void;
@@ -139,6 +148,8 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
   briefing,
   cards,
   parentContent = '',
+  initialSectionIndex,
+  onInitialSectionConsumed,
   onDeepDive,
   onAnalogyUpdated,
   onReframeAudio,
@@ -211,10 +222,25 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
   // Depends only on briefingId — useAudioPlayer.loadBriefing isn't memoized,
   // so depending on it here would re-run every render and the cleanup would
   // cancel speech mid-playback.
+  //
+  // initialSectionIndex (when provided) lands the player at a specific
+  // section instead of 0 — used by the dive-exit flow so the parent's
+  // audio resumes where the user left off. We consume it once on mount
+  // and tell the parent to clear it.
   const briefingId = briefing.briefing_id;
   useEffect(() => {
     loadBriefing(briefing);
-    setSectionIndex(0);
+    const startAt =
+      typeof initialSectionIndex === 'number' &&
+      initialSectionIndex >= 0 &&
+      sections &&
+      initialSectionIndex < sections.length
+        ? initialSectionIndex
+        : 0;
+    setSectionIndex(startAt);
+    if (typeof initialSectionIndex === 'number') {
+      onInitialSectionConsumed?.();
+    }
     setIsSectionPlaying(false);
     setPendingCard(null);
     setCardRevealed(false);
@@ -593,7 +619,10 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
           parentContent={parentContent}
           onReveal={() => setCardRevealed(true)}
           onVerdict={handleCardVerdict}
-          onDeepDive={onDeepDive}
+          // Wrap onDeepDive so the overlay only needs to pass `selection`;
+          // we attach the current sectionIndex here so the parent can save
+          // it for resume-on-exit.
+          onDeepDive={onDeepDive ? (sel: string) => onDeepDive(sel, sectionIndex) : undefined}
           onAnalogyUpdated={onAnalogyUpdated}
         />
       )}
@@ -607,6 +636,8 @@ interface FlashcardOverlayProps {
   parentContent: string;
   onReveal: () => void;
   onVerdict: (verdict: 'gotIt' | 'reviewAgain') => void;
+  /** Triggered with the user-picked keyTerm. AudioPlayer attaches the
+   *  current sectionIndex separately before forwarding upward. */
   onDeepDive?: (selection: string) => void;
   onAnalogyUpdated?: (cardId: string, newExplanation: string) => void;
 }
@@ -831,13 +862,22 @@ const FlashcardOverlay: React.FC<FlashcardOverlayProps> = ({
             )}
 
             {onDeepDive && (
-              <div className="flex justify-end mt-3">
-                <button
-                  onClick={() => onDeepDive(card.front)}
-                  className="text-xs text-purple-400 hover:text-purple-300 underline-offset-2 hover:underline"
-                >
-                  🤿 Dive deeper
-                </button>
+              <div className="mt-4 space-y-2">
+                <div className="text-xs text-dark-400">🤿 Dive deeper into:</div>
+                <div className="flex flex-wrap gap-2">
+                  {(card.keyTerms && card.keyTerms.length > 0
+                    ? card.keyTerms
+                    : [card.front]
+                  ).map((term, idx) => (
+                    <button
+                      key={idx}
+                      onClick={() => onDeepDive(term)}
+                      className="text-xs px-3 py-1.5 rounded-full bg-purple-500/15 border border-purple-500/40 text-purple-200 hover:bg-purple-500/25 hover:border-purple-400/60 transition-colors"
+                    >
+                      {term}
+                    </button>
+                  ))}
+                </div>
               </div>
             )}
 
