@@ -28,6 +28,7 @@
     "@tailwindcss/typography": "^0.5.19",
     "@types/uuid": "^10.0.0",
     "autoprefixer": "^10.4.24",
+    "framer-motion": "^12.38.0",
     "jose": "^6.2.2",
     "lucide-react": "^1.14.0",
     "postcss": "^8.5.6",

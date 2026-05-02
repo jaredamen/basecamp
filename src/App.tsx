@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { AnimatePresence } from 'framer-motion';
 import { useBYOK } from './hooks/useBYOK';
 import { useContentGeneration } from './hooks/useContentGeneration';
 import { useManaged } from './hooks/useManaged';
@@ -260,28 +261,32 @@ function AppMain() {
               onReframeAudio={reframeAudio}
               onBack={handleNavigateHome}
             />
-            {parentSnapshot && (
-              <DiveSheet onClose={exitDive}>
-                {stage === 'diving' ? (
-                  <DiveLoader selection={diveSelection ?? ''} />
-                ) : (
-                  <LearningContentDisplay
-                    flashcards={flashcards}
-                    audioScript={audioScript}
-                    originalContent={originalContent ?? ''}
-                    isInDive
-                    isReframing={stage === 'reframing'}
-                    audioStartSectionIndex={audioStartSectionIndex}
-                    onAudioStartSectionConsumed={clearAudioStartSection}
-                    onDeepDive={deepDive}
-                    onExitDive={exitDive}
-                    onAnalogyUpdated={updateCardAnalogy}
-                    onReframeAudio={reframeAudio}
-                    onBack={handleNavigateHome}
-                  />
-                )}
-              </DiveSheet>
-            )}
+            {/* AnimatePresence so the sheet's slide-down + scrim fade
+                play on dismiss. Without it the sheet just disappears. */}
+            <AnimatePresence>
+              {parentSnapshot && (
+                <DiveSheet key="dive-sheet" onClose={exitDive}>
+                  {stage === 'diving' ? (
+                    <DiveLoader selection={diveSelection ?? ''} />
+                  ) : (
+                    <LearningContentDisplay
+                      flashcards={flashcards}
+                      audioScript={audioScript}
+                      originalContent={originalContent ?? ''}
+                      isInDive
+                      isReframing={stage === 'reframing'}
+                      audioStartSectionIndex={audioStartSectionIndex}
+                      onAudioStartSectionConsumed={clearAudioStartSection}
+                      onDeepDive={deepDive}
+                      onExitDive={exitDive}
+                      onAnalogyUpdated={updateCardAnalogy}
+                      onReframeAudio={reframeAudio}
+                      onBack={handleNavigateHome}
+                    />
+                  )}
+                </DiveSheet>
+              )}
+            </AnimatePresence>
           </>
         )}
 
