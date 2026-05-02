@@ -15,6 +15,10 @@ export interface Flashcard {
 export interface AudioBriefingSection {
   id: string;
   content: string;
+  /** Optional section title — displayed above the section's body in the
+   *  ListeningBand. Provides a quick orientation read in the orb-centric
+   *  layout where horizontal space is constrained. */
+  heading?: string;
 }
 
 /**

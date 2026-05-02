@@ -1,47 +1,27 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { AnimatePresence } from 'framer-motion';
 import { useBYOK } from './hooks/useBYOK';
 import { useContentGeneration } from './hooks/useContentGeneration';
 import { useManaged } from './hooks/useManaged';
-import { BYOKSetupFlow } from './components/BYOKSetupFlow';
-import { DocumentationInput } from './components/DocumentationInput';
-import { LearningContentDisplay } from './components/LearningContentDisplay';
-import { LoadingIndicator } from './components/LoadingIndicator';
+import { useAudioPlayback } from './hooks/useAudioPlayback';
+import { AppShell } from './components/AppShell';
+import { OrbStage } from './components/OrbStage';
 import { AppHeader } from './components/AppHeader';
 import { AddPaymentModal } from './components/AddPaymentModal';
-import { AudioPlayer } from './components/AudioPlayer';
-import { LibraryView } from './components/LibraryView';
-import { DiveSheet } from './components/DiveSheet';
+import { SignInBand } from './components/bands/SignInBand';
+import { TopicInputBand } from './components/bands/TopicInputBand';
+import { GeneratingBand } from './components/bands/GeneratingBand';
+import { ContentBand } from './components/bands/ContentBand';
+import { LibraryBand } from './components/bands/LibraryBand';
+import { DiveOverlay } from './components/bands/DiveOverlay';
 import { DiveLoader } from './components/DiveLoader';
-import { DEMO_PAUSE_AND_QUIZ_BRIEFING, DEMO_FLASHCARDS } from './devDemoBriefing';
+import type { FlareState } from './components/SolarFlare';
+import type { AudioBriefing } from './types';
 import { briefingLibrary, type SavedBriefing } from './services/briefingLibrary';
 
 type AppState = 'setup' | 'input' | 'generating' | 'content' | 'library';
 
-// Dev-only: visiting /?demo=audio short-circuits to the AudioPlayer with a
-// hardcoded fixture briefing. Lets you verify Pause-and-Quiz UX without
-// running the API locally or spending LLM/TTS credits.
-const isDevDemoAudio = (): boolean => {
-  if (!import.meta.env.DEV) return false;
-  if (typeof window === 'undefined') return false;
-  return new URLSearchParams(window.location.search).get('demo') === 'audio';
-};
-
 function App() {
-  if (isDevDemoAudio()) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-solar-900 via-solar-800 to-solar-900 flex flex-col">
-        <AudioPlayer
-          briefing={DEMO_PAUSE_AND_QUIZ_BRIEFING}
-          cards={DEMO_FLASHCARDS}
-          onBack={() => {
-            window.history.replaceState({}, '', window.location.pathname);
-            window.location.reload();
-          }}
-        />
-      </div>
-    );
-  }
   return <AppMain />;
 }
 
@@ -73,6 +53,37 @@ function AppMain() {
   const { session, billing, isAuthenticated, loading: managedLoading, refreshBilling, signOut } = useManaged();
   const [showPaymentModal, setShowPaymentModal] = useState(false);
 
+  // Construct the AudioBriefing from current state. Memoized on the IDs
+  // that should trigger a useAudioPlayback reload (deck change OR audio
+  // reframe). We pass briefing_id = flashcards.id to keep briefingLibrary
+  // lookups stable and audioScript.id is passed separately to drive blob
+  // cache invalidation on reframe.
+  const briefing: AudioBriefing | null = useMemo(() => {
+    if (!flashcards || !audioScript) return null;
+    return {
+      briefing_id: flashcards.id,
+      title: audioScript.title || flashcards.title || 'Audio Briefing',
+      source: '',
+      created_at: new Date().toISOString(),
+      script: audioScript.content,
+      audio_file: undefined,
+      sections: audioScript.sections.map(s => ({ id: s.id, content: s.content, heading: s.heading })),
+      interruptionPoints: audioScript.interruptionPoints,
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [flashcards?.id, audioScript?.id]);
+
+  // Audio playback state — owns sectionIndex, pendingCard, blob cache,
+  // play/pause, etc. Lifted to App so the persistent orb (centered above)
+  // and the ContentBand (right of orb) read the same state.
+  const audio = useAudioPlayback({
+    briefing,
+    cards: flashcards?.cards ?? [],
+    audioScriptId: audioScript?.id,
+    initialSectionIndex: audioStartSectionIndex,
+    onInitialSectionConsumed: clearAudioStartSection,
+  });
+
   // Handle Stripe redirect params (after adding payment method)
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -82,26 +93,18 @@ function AppMain() {
     }
   }, [refreshBilling]);
 
-  // Auto-transition based on the generation state machine.
-  //
-  // 'diving' / 'reframing' deliberately do NOT flip to 'generating' anymore —
-  // dive loads now stack as a sheet over the parent (see DiveSheet below),
-  // and reframe shows an inline banner inside AudioPlayer. Both keep the
-  // parent's content visible underneath so the user doesn't lose context.
-  // The full-screen LoadingIndicator is reserved for INITIAL generation,
-  // where there's no parent to layer over.
-  //
-  // 'complete' lands the user in the content view (shared by initial
-  // generation, dive completion, and reframe completion).
+  // Auto-transition based on the generation state machine. 'diving' /
+  // 'reframing' deliberately don't flip to 'generating' anymore — the orb
+  // shows Loading + the DiveOverlay materialises beside it. Initial
+  // generation does flip to 'generating' so the GeneratingBand renders
+  // its stage list beside the orb.
   const lastSavedKeyRef = useRef<string | null>(null);
   useEffect(() => {
     if (stage === 'complete' && flashcards && audioScript) {
       setAppState('content');
       refreshBilling();
-      // Skip auto-save for dives (isInDive=true) — they're transient sub-views
-      // off a parent briefing; we don't want a half-dozen "Stoicism: dichotomy"
-      // dive entries cluttering the library yet. Once SavedBriefing carries
-      // parentId we can save them with a clear parent-link.
+      // Skip auto-save for dives (transient sub-views; we don't want a
+      // half-dozen "Stoicism: dichotomy" entries cluttering the library).
       if (!wasLoadedFromLibrary && !isInDive) {
         const key = `${flashcards.id}::${audioScript.id}`;
         if (lastSavedKeyRef.current !== key) {
@@ -117,71 +120,88 @@ function AppMain() {
     }
   }, [stage, flashcards, audioScript, refreshBilling, wasLoadedFromLibrary, isInDive]);
 
-  const handleSetupComplete = () => {
-    setAppState('input');
-  };
-
+  const handleSetupComplete = () => setAppState('input');
   const handleGenerateContent = async (input: { url?: string; text?: string; type: 'url' | 'text' }) => {
     setAppState('generating');
     await generateContent(input);
   };
-
-  const handleNavigateHome = () => {
-    setAppState('input');
-  };
-
+  const handleNavigateHome = () => setAppState('input');
   const handleNavigateContent = () => {
-    if (flashcards && audioScript) {
-      setAppState('content');
-    }
+    if (flashcards && audioScript) setAppState('content');
   };
-
-  const handleNavigateLibrary = () => {
-    setAppState('library');
-  };
-
+  const handleNavigateLibrary = () => setAppState('library');
   const handleOpenFromLibrary = (saved: SavedBriefing) => {
     loadFromLibrary(saved.flashcards, saved.audioScript);
     setAppState('content');
   };
-
   const handleBackToInput = () => {
     resetGeneration();
     setAppState('input');
   };
-
   const handleSignOut = async () => {
     await signOut();
     clearConfig();
     resetGeneration();
     setAppState('setup');
   };
+  const handleAddPaymentMethod = () => setShowPaymentModal(true);
 
-  const handleAddPaymentMethod = () => {
-    setShowPaymentModal(true);
-  };
-
-  // Determine which state to show
+  // ── Determine the visible state ─────────────────────────────────────
   let currentState = appState;
-
-  // For managed users: must be authenticated to access the app.
-  // If localStorage says managed but session is null (expired/logged out),
-  // force them back to setup so they see the sign-in screen.
   const managedButNotAuth = isManaged && !isAuthenticated && !managedLoading;
-
   if (managedButNotAuth) {
     currentState = 'setup';
   } else if (currentState === 'setup' && isConfigured && (!isManaged || isAuthenticated)) {
     currentState = 'input';
   }
 
-  // Only show header when user is actually authenticated (managed) or using BYOK
   const showHeader = isManaged && isAuthenticated && currentState !== 'setup';
   const hasContent = !!(flashcards && audioScript);
 
+  // ── Derive orb props for the persistent SolarFlare ──────────────────
+  // Priority: dive loading > generating > playback state > idle.
+  const isLoadingStage = stage === 'fetching' || stage === 'analyzing' ||
+    stage === 'flashcards' || stage === 'audio' || stage === 'diving' || stage === 'reframing';
+
+  const flareState: FlareState =
+    isLoadingStage ? 'Loading' :
+    currentState === 'content' ? audio.flareState :
+    'Idle';
+
+  const ringProgress =
+    isLoadingStage ? progress / 100 :
+    currentState === 'content' ? audio.ringProgress :
+    0;
+
+  // Caption text — instrument-readout style. Always lowercase, calm.
+  const orbCaption = (() => {
+    if (currentState === 'setup') return 'welcome to basecamp';
+    if (currentState === 'input') return 'ready · paste a topic';
+    if (stage === 'diving') return diveSelection ? `diving into "${diveSelection}"…` : 'diving deeper…';
+    if (stage === 'reframing') return 're-framing analogy…';
+    if (isLoadingStage) return `${stage} · ${Math.round(progress)}%`;
+    if (currentState === 'library') return `library · ${briefingLibrary.count()} saved`;
+    if (currentState === 'content' && hasContent) {
+      if (audio.pendingCard) return 'recall time';
+      if (audio.hasSections) {
+        const cur = Math.min(audio.sectionIndex + 1, audio.sectionCount);
+        return `section ${cur} of ${audio.sectionCount} · ${audio.statusLabel}`;
+      }
+      return audio.statusLabel;
+    }
+    return undefined;
+  })();
+
+  // Click the orb → playable in content state, otherwise no-op.
+  const handleOrbToggle = () => {
+    if (currentState === 'content' && audio.hasSections && !isLoadingStage) {
+      audio.handlePlayPause();
+    }
+  };
+  const orbDisabled = isLoadingStage || (currentState === 'content' ? !!audio.pendingCard || audio.isFetchingAudio : true);
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-solar-900 via-solar-800 to-solar-900">
-      {/* Persistent header — only for authenticated managed users */}
+    <AppShell>
       {showHeader && (
         <AppHeader
           userName={session?.name || session?.email}
@@ -204,106 +224,103 @@ function AppMain() {
         />
       )}
 
-      <div className={showHeader ? 'pt-14' : ''}>
-        {currentState === 'setup' && (
-          <BYOKSetupFlow onComplete={handleSetupComplete} />
-        )}
-
-        {currentState === 'input' && (
-          <DocumentationInput
-            onGenerate={handleGenerateContent}
-            isGenerating={appState === 'generating'}
-          />
-        )}
-
-        {currentState === 'generating' && (
-          <LoadingIndicator
-            stage={stage}
-            progress={progress}
-            error={error}
-            insufficientCredits={insufficientCredits}
-            onRetry={handleBackToInput}
-            onAddCredits={handleAddPaymentMethod}
-          />
-        )}
-
-        {currentState === 'content' && flashcards && audioScript && (
-          // ── Stacked-card layout ────────────────────────────────────────
-          // The "bottom" LearningContentDisplay is ALWAYS rendered as the
-          // first child of this fragment so React keeps the same instance
-          // across the dive lifecycle. That preservation is what lets
-          // AudioPlayer hold onto its sectionIndex (and any open
-          // FlashcardOverlay) so popping a dive sheet returns the user
-          // exactly where they were — no remount, no replay-from-zero.
-          //
-          // While in a dive, the bottom layer reads from parentSnapshot
-          // (the parent briefing) and is rendered `inactive`. The top
-          // DiveSheet hosts either the DiveLoader (gen in flight) or the
-          // dive's own LearningContentDisplay (stage='complete').
-          //
-          // Reframe: when stage='reframing' and we're NOT inside a dive,
-          // the bottom layer shows an inline "🎵 Re-framing…" banner
-          // inside its AudioPlayer rather than triggering a full-screen
-          // takeover.
-          <>
-            <LearningContentDisplay
-              flashcards={parentSnapshot ? parentSnapshot.flashcards : flashcards}
-              audioScript={parentSnapshot ? parentSnapshot.audioScript : audioScript}
-              originalContent={parentSnapshot ? (parentSnapshot.originalContent ?? '') : (originalContent ?? '')}
-              isInDive={false}
-              inactive={!!parentSnapshot}
-              isReframing={!parentSnapshot && stage === 'reframing'}
-              audioStartSectionIndex={parentSnapshot ? undefined : audioStartSectionIndex}
-              onAudioStartSectionConsumed={clearAudioStartSection}
-              onDeepDive={deepDive}
-              onExitDive={exitDive}
-              onAnalogyUpdated={updateCardAnalogy}
-              onReframeAudio={reframeAudio}
-              onBack={handleNavigateHome}
+      <main
+        className={`${showHeader ? 'pt-14' : 'pt-8'} pb-12 px-4 lg:px-12 min-h-screen flex items-center`}
+      >
+        <div className="w-full max-w-6xl mx-auto grid lg:grid-cols-[auto_1fr] gap-8 lg:gap-12 items-start lg:items-center">
+          {/* Persistent JARVIS centerpiece — never unmounts. */}
+          <div className="flex justify-center lg:justify-start">
+            <OrbStage
+              state={flareState}
+              progress={ringProgress}
+              caption={orbCaption}
+              inDive={!!parentSnapshot}
+              sectionMarks={currentState === 'content' && audio.hasSections ? audio.sectionCount : undefined}
+              onToggle={handleOrbToggle}
+              disabled={orbDisabled}
             />
-            {/* AnimatePresence so the sheet's slide-down + scrim fade
-                play on dismiss. Without it the sheet just disappears. */}
-            <AnimatePresence>
-              {parentSnapshot && (
-                <DiveSheet key="dive-sheet" onClose={exitDive}>
-                  {stage === 'diving' ? (
-                    <DiveLoader selection={diveSelection ?? ''} />
-                  ) : (
-                    <LearningContentDisplay
-                      flashcards={flashcards}
-                      audioScript={audioScript}
-                      originalContent={originalContent ?? ''}
-                      isInDive
-                      isReframing={stage === 'reframing'}
-                      audioStartSectionIndex={audioStartSectionIndex}
-                      onAudioStartSectionConsumed={clearAudioStartSection}
-                      onDeepDive={deepDive}
-                      onExitDive={exitDive}
-                      onAnalogyUpdated={updateCardAnalogy}
-                      onReframeAudio={reframeAudio}
-                      onBack={handleNavigateHome}
-                    />
-                  )}
-                </DiveSheet>
+          </div>
+
+          {/* Context band — state-driven content panel. AnimatePresence
+              cross-fades on state change without unmounting the orb. */}
+          <div className="relative min-h-[300px]">
+            <AnimatePresence mode="wait" initial={false}>
+              {currentState === 'setup' && (
+                <SignInBand key="sign-in" onComplete={handleSetupComplete} />
+              )}
+
+              {currentState === 'input' && (
+                <TopicInputBand
+                  key="topic"
+                  onGenerate={handleGenerateContent}
+                  isGenerating={appState === 'generating'}
+                />
+              )}
+
+              {currentState === 'generating' && (
+                <GeneratingBand
+                  key="generating"
+                  stage={stage}
+                  progress={progress}
+                  error={error}
+                  insufficientCredits={insufficientCredits}
+                  onRetry={handleBackToInput}
+                  onAddCredits={handleAddPaymentMethod}
+                />
+              )}
+
+              {currentState === 'content' && flashcards && audioScript && (
+                <ContentBand
+                  key="content"
+                  flashcards={flashcards}
+                  audioScript={audioScript}
+                  originalContent={originalContent ?? ''}
+                  isInDive={isInDive}
+                  isReframing={stage === 'reframing'}
+                  sectionIndex={audio.sectionIndex}
+                  showScript={audio.showScript}
+                  setShowScript={audio.setShowScript}
+                  voiceError={audio.voiceError}
+                  setVoiceError={audio.setVoiceError}
+                  pendingCard={audio.pendingCard}
+                  cardRevealed={audio.cardRevealed}
+                  setCardRevealed={audio.setCardRevealed}
+                  onCardVerdict={audio.handleCardVerdict}
+                  onDeepDive={deepDive}
+                  onExitDive={exitDive}
+                  onAnalogyUpdated={updateCardAnalogy}
+                  onReframeAudio={reframeAudio}
+                  onBack={handleNavigateHome}
+                />
+              )}
+
+              {currentState === 'library' && (
+                <LibraryBand
+                  key="library"
+                  onOpen={handleOpenFromLibrary}
+                  onBack={handleNavigateHome}
+                />
               )}
             </AnimatePresence>
-          </>
-        )}
 
-        {currentState === 'library' && (
-          <LibraryView
-            onOpen={handleOpenFromLibrary}
-            onBack={handleNavigateHome}
-          />
-        )}
-      </div>
+            {/* Dive overlay — rises in the band's column when parentSnapshot
+                is set. Sibling of the band so they share the same layout
+                slot; AnimatePresence handles enter/exit. */}
+            <AnimatePresence>
+              {parentSnapshot && stage === 'diving' && (
+                <DiveOverlay key="dive-loader" onClose={exitDive}>
+                  <DiveLoader selection={diveSelection ?? ''} />
+                </DiveOverlay>
+              )}
+            </AnimatePresence>
+          </div>
+        </div>
+      </main>
 
       {showPaymentModal && (
-        <AddPaymentModal
-          onClose={() => setShowPaymentModal(false)}
-        />
+        <AddPaymentModal onClose={() => setShowPaymentModal(false)} />
       )}
-    </div>
+    </AppShell>
   );
 }
 

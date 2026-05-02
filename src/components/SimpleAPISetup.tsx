@@ -56,7 +56,7 @@ export function SimpleAPISetup({ onComplete, onBack }: SimpleAPISetupProps) {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-dark-900 via-dark-800 to-dark-900 flex flex-col justify-center px-6">
+    <div className="space-y-6 flex flex-col justify-center px-6">
       <div className="max-w-lg mx-auto w-full space-y-6">
         <div className="text-center space-y-2">
           <h1 className="text-3xl font-bold text-solar-100">Bring your OpenAI key</h1>
