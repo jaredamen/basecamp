@@ -29,19 +29,31 @@ export function OrbStage({
 }: OrbStageProps) {
   return (
     <div className="flex flex-col items-center justify-center">
-      {/* lg breakpoint = desktop. On smaller, the orb shrinks so it doesn't
-          dominate the (limited) vertical space. Tailwind's responsive
-          utilities don't help directly because SolarFlare takes a numeric
-          `size` prop — render two SolarFlares behind a `lg:hidden` guard.
-          Both orbs share the same parent state, so the swap is invisible
-          aside from one being mounted at a time. */}
-      <div className="lg:hidden">
+      {/* Three-tier responsive sizing — SolarFlare takes a numeric `size`
+          prop so we render three instances behind responsive guards.
+          Only one is mounted at a time so the visual swap is invisible
+          aside from the size change at each breakpoint:
+            <sm  (mobile, <640px)        : 140px
+            sm-to-lg (tablet, 640–1023)  : 180px
+            lg+  (desktop, ≥1024px)      : 220px */}
+      <div className="sm:hidden">
         <SolarFlare
           state={state}
           progress={progress}
           onToggle={onToggle}
           disabled={disabled}
-          size={160}
+          size={140}
+          inDive={inDive}
+          sectionMarks={sectionMarks}
+        />
+      </div>
+      <div className="hidden sm:block lg:hidden">
+        <SolarFlare
+          state={state}
+          progress={progress}
+          onToggle={onToggle}
+          disabled={disabled}
+          size={180}
           inDive={inDive}
           sectionMarks={sectionMarks}
         />

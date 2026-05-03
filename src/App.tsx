@@ -263,12 +263,13 @@ function AppMain() {
       )}
 
       <main
-        className={`${showHeader ? 'pt-10' : 'pt-4'} pb-12 px-4 min-h-screen flex flex-col items-center`}
+        className={`${showHeader ? 'pt-12' : 'pt-4'} pb-12 px-4 min-h-screen flex flex-col items-center`}
       >
-        {/* Vertical stack — orb true-centered horizontally, ~25vh from
-            top, content beneath. Same layout on mobile + desktop, just
-            the orb shrinks responsively (handled in OrbStage). */}
-        <div className="w-full flex flex-col items-center gap-10 mt-[12vh]">
+        {/* Vertical stack — orb true-centered horizontally. Top spacing
+            tightens on mobile so the user lands closer to the orb without
+            a scroll; gap between orb and band tightens too. The orb
+            itself shrinks responsively (handled in OrbStage). */}
+        <div className="w-full flex flex-col items-center gap-6 sm:gap-10 mt-4 sm:mt-[8vh] lg:mt-[12vh]">
           {/* Persistent JARVIS centerpiece — never unmounts. */}
           <OrbStage
             state={flareState}

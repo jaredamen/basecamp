@@ -103,7 +103,7 @@ export function QuizPanel({
       initial={{ opacity: 0, y: 16, scale: 0.96 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
       exit={{ opacity: 0, y: 8, scale: 0.96 }}
-      className="glass-strong rounded-2xl p-6 relative overflow-hidden"
+      className="glass-strong rounded-2xl p-4 sm:p-6 relative overflow-hidden"
       role="dialog"
       aria-modal="true"
       aria-label="Active recall flashcard"

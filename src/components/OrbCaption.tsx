@@ -18,7 +18,7 @@ interface OrbCaptionProps {
  */
 export function OrbCaption({ text }: OrbCaptionProps) {
   return (
-    <div className="h-5 mt-4 flex items-center justify-center">
+    <div className="min-h-[20px] mt-4 flex items-center justify-center px-3">
       <AnimatePresence mode="wait" initial={false}>
         {text && (
           <motion.span
@@ -27,7 +27,7 @@ export function OrbCaption({ text }: OrbCaptionProps) {
             animate={{ opacity: 0.85, y: 0 }}
             exit={{ opacity: 0, y: -4 }}
             transition={{ duration: 0.18 }}
-            className="font-mono text-xs tracking-wider text-solar-gold/85 select-none"
+            className="font-mono text-xs tracking-wider text-solar-gold/85 select-none text-center max-w-[90vw]"
           >
             {text}
           </motion.span>
