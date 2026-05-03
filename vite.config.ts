@@ -39,6 +39,15 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,json}'],
+        // Force the new service worker to activate + seize control of all
+        // open tabs the moment it installs. Without this pair, returning
+        // users see the previous build until they manually hard-refresh
+        // (vite-plugin-pwa's `autoUpdate` only downloads in the
+        // background; it doesn't take over). For a SaaS with no in-flight
+        // client state to preserve across SW boundaries, this is the
+        // documented "force-update on deploy" pattern.
+        skipWaiting: true,
+        clientsClaim: true,
         navigateFallbackDenylist: [/^\/api\//],
         runtimeCaching: [
           {
