@@ -172,11 +172,7 @@ test.describe('Voice integrity', () => {
     await page.waitForLoadState('networkidle');
     await expect(page.getByText('$0.50 left')).toBeVisible({ timeout: 10000 });
 
-    const pasteTab = page.getByText('Paste Content');
-    if (await pasteTab.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await pasteTab.click();
-    }
-
+    // No more URL/text toggle — single slot auto-detects mode.
     await page.locator('textarea').fill(SAMPLE_TEXT);
     await page.getByRole('button', { name: /Generate/i }).click();
 

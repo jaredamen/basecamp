@@ -149,11 +149,28 @@ export function useContentGeneration() {
           insufficientCredits: true,
         });
       } else {
+        // Friendlier copy when the failed input was a Wikipedia URL —
+        // catches both the topic-mode auto-route failures (sparse
+        // article / 404) and direct paste-a-Wikipedia-URL failures.
+        const rawMessage = error instanceof Error ? error.message : 'Generation failed';
+        const wikiUrl = input.url && input.url.includes('en.wikipedia.org/wiki/') ? input.url : null;
+        const isFetchError = /fetch URL|too short|Unable to extract|404/i.test(rawMessage);
+        let friendlyMessage = rawMessage;
+        if (wikiUrl && isFetchError) {
+          // Recover the topic name from the URL's last path segment
+          // (decoded, underscores → spaces) for the nicer error.
+          const segment = wikiUrl.split('/wiki/')[1] ?? '';
+          const topic = decodeURIComponent(segment).replace(/_/g, ' ');
+          friendlyMessage = topic
+            ? `Couldn't learn from "${topic}" — that Wikipedia article was too short or doesn't exist. Try a different topic or paste your own text.`
+            : 'Couldn\'t fetch that Wikipedia article. Try a different topic or paste your own text.';
+        }
+
         setState({
           isGenerating: false,
           stage: 'idle',
           progress: 0,
-          error: error instanceof Error ? error.message : 'Generation failed'
+          error: friendlyMessage,
         });
       }
     }

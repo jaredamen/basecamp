@@ -184,20 +184,15 @@ test.describe('Golden Path: Full generation flow', () => {
       page.getByText('$0.50 left')
     ).toBeVisible({ timeout: 10000 });
 
-    // Should be on the input page (not setup/welcome)
-    await expect(page.getByText('Learn Anything')).toBeVisible({
-      timeout: 5000,
-    });
+    // Should be on the input page — the topic-input textarea is visible.
+    // (No more "Learn Anything" h1 / "Paste Content" tab — auto-detect
+    // handles URL vs topic vs text from a single slot.)
+    const textarea = page.locator('textarea');
+    await expect(textarea).toBeVisible({ timeout: 5000 });
 
     // === STEP 3: Enter content ===
-    // Click "Paste Content" tab
-    const pasteTab = page.getByText('Paste Content');
-    if (await pasteTab.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await pasteTab.click();
-    }
-
-    // Enter text content
-    const textarea = page.locator('textarea');
+    // Paste a long-text block. SAMPLE_TEXT is >50 chars + multi-line, so
+    // the band auto-detects text mode (no toggle needed).
     await textarea.fill(SAMPLE_TEXT);
 
     // === STEP 4: Generate content ===
@@ -236,9 +231,8 @@ test.describe('Golden Path: Full generation flow', () => {
     const newButton = page.getByRole('button', { name: 'New' });
     if (await newButton.isVisible({ timeout: 2000 }).catch(() => false)) {
       await newButton.click();
-      await expect(
-        page.getByRole('heading', { name: /Learn Anything/i })
-      ).toBeVisible({ timeout: 5000 });
+      // Topic-input page — confirm the textarea is back on screen.
+      await expect(page.locator('textarea')).toBeVisible({ timeout: 5000 });
     }
 
     // Click "Current" in the header to go back to generated content
