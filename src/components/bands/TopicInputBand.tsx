@@ -237,7 +237,7 @@ export function TopicInputBand({ onGenerate, isGenerating = false }: TopicInputB
                 type="button"
                 onClick={() => handleResultClick(r)}
                 title={r.description || r.title}
-                className="text-xs px-3 py-1.5 rounded-full bg-solar-gold/15 border border-solar-gold/40 text-solar-gold hover:bg-solar-gold/25 hover:border-solar-gold/60 transition-colors max-w-[280px] truncate"
+                className="text-xs px-3 py-1.5 rounded-full bg-solar-gold/15 border border-solar-gold/40 text-solar-gold hover:bg-solar-gold/25 hover:border-solar-gold/60 transition-colors max-w-full sm:max-w-[280px] truncate"
               >
                 {r.title}
               </button>
