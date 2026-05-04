@@ -16,7 +16,7 @@ interface AppShellProps {
  */
 export function AppShell({ children }: AppShellProps) {
   return (
-    <div className="relative min-h-screen bg-solar-900 overflow-hidden">
+    <div className="relative min-h-screen bg-solar-900 overflow-x-hidden">
       {/* Single radial gold glow under the orb's position. Positioned to
           align with where OrbStage centers the orb on each breakpoint. */}
       <div
