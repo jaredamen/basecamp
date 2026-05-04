@@ -2,12 +2,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { AudioBriefing, AudioInterruptionPoint } from '../types';
 import type { Flashcard } from '../services/aiPrompting';
 import { useAudioPlayer } from './useAudioPlayer';
-import { useTTS } from './useTTS';
 import { fetchVoiceAudio, InsufficientCreditsError } from '../services/voiceTTS';
 import { briefingLibrary } from '../services/briefingLibrary';
 import type { FlareState } from '../components/SolarFlare';
-
-type Backend = 'openai' | 'browser';
 
 /**
  * On a fresh briefing we use the LLM-chosen interruption points as-is.
@@ -43,26 +40,32 @@ function chooseInterruptionPoints(
   }));
 }
 
+/**
+ * Translate a TTS proxy failure into a single-sentence user-visible
+ * message. There is NO browser-voice fallback anymore — if nova
+ * (`/api/proxy/tts`) can't deliver, we surface the error and the user
+ * has to retry. Robotic browser voice is never substituted.
+ */
 function classifyAudioError(err: unknown): string {
   if (err instanceof InsufficientCreditsError) {
-    return 'Out of credits. Add a payment method to keep listening with the high-quality voice.';
+    return 'Out of credits. Add a payment method to continue listening.';
   }
   if (err instanceof Error) {
     const m = err.message.toLowerCase();
     if (m.includes('401') || m.includes('unauthor') || m.includes('sign in')) {
-      return 'Sign in to use the high-quality voice. Using browser voice for now.';
+      return 'Sign in to play this audio.';
     }
     if (m.includes('429') || m.includes('rate')) {
-      return 'Rate limited. Using browser voice for now — try again in a moment.';
+      return 'Rate limited. Try again in a moment.';
     }
     if (m.includes('timeout') || m.includes('aborted')) {
-      return 'Voice service timed out. Using browser voice.';
+      return 'Voice service timed out. Tap play to retry.';
     }
     if (m.includes('payment') || m.includes('402')) {
-      return 'Add a payment method to use the high-quality voice. Using browser voice for now.';
+      return 'Add a payment method to continue.';
     }
   }
-  return 'Voice service unavailable. Using browser voice.';
+  return 'Voice service unavailable. Tap play to retry.';
 }
 
 interface UseAudioPlaybackInput {
@@ -98,7 +101,6 @@ interface UseAudioPlaybackOutput {
   setShowScript: (v: boolean) => void;
   voiceError: string | null;
   setVoiceError: (v: string | null) => void;
-  backend: Backend;
   hasSections: boolean;
   handlePlayPause: () => void;
   handleCardVerdict: (verdict: 'gotIt' | 'reviewAgain') => void;
@@ -132,7 +134,6 @@ export function useAudioPlayback({
   inactive = false,
 }: UseAudioPlaybackInput): UseAudioPlaybackOutput {
   const { playerState, loadBriefing } = useAudioPlayer();
-  const { ttsState } = useTTS();
 
   const [showScript, setShowScript] = useState(false);
 
@@ -154,18 +155,11 @@ export function useAudioPlayback({
   const [pendingCard, setPendingCard] = useState<Flashcard | null>(null);
   const [cardRevealed, setCardRevealed] = useState(false);
   const [isFetchingAudio, setIsFetchingAudio] = useState(false);
-  const [backend, setBackend] = useState<Backend>('openai');
   const [voiceError, setVoiceError] = useState<string | null>(null);
 
   const audioElRef = useRef<HTMLAudioElement | null>(null);
   const audioUrlsRef = useRef<Map<number, string>>(new Map());
   const inFlightRef = useRef<Map<number, Promise<string | null>>>(new Map());
-
-  const sectionUtteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
-  const voiceSettingsRef = useRef(ttsState.voiceSettings);
-  useEffect(() => {
-    voiceSettingsRef.current = ttsState.voiceSettings;
-  }, [ttsState.voiceSettings]);
 
   // Lazy-init the HTMLAudioElement once.
   useEffect(() => {
@@ -178,14 +172,11 @@ export function useAudioPlayback({
     };
   }, []);
 
-  // When inactive (parent stashed for a dive), pause everything.
+  // When inactive (parent stashed for a dive), pause playback.
   // sectionIndex is preserved so popping back resumes in place.
   useEffect(() => {
     if (!inactive) return;
     audioElRef.current?.pause();
-    if (typeof window !== 'undefined' && window.speechSynthesis) {
-      window.speechSynthesis.cancel();
-    }
     setIsSectionPlaying(false);
   }, [inactive]);
 
@@ -211,11 +202,9 @@ export function useAudioPlayback({
     setIsSectionPlaying(false);
     setPendingCard(null);
     setCardRevealed(false);
-    setBackend('openai');
     setVoiceError(null);
     inFlightRef.current.clear();
     return () => {
-      window.speechSynthesis.cancel();
       audioElRef.current?.pause();
       for (const url of audioUrlsRef.current.values()) {
         URL.revokeObjectURL(url);
@@ -243,8 +232,10 @@ export function useAudioPlayback({
         audioUrlsRef.current.set(i, url);
         return url;
       } catch (err) {
+        // Surface the failure in the banner — no silent browser-voice
+        // fallback. The user sees what went wrong and can retry.
         setVoiceError(classifyAudioError(err));
-        console.warn('OpenAI TTS unavailable, falling back to browser voice', err);
+        console.warn('OpenAI TTS unavailable', err);
         return null;
       } finally {
         inFlightRef.current.delete(i);
@@ -253,44 +244,6 @@ export function useAudioPlayback({
     inFlightRef.current.set(i, promise);
     return promise;
   }, [sections]);
-
-  const speakViaBrowser = useCallback((i: number) => {
-    if (!sections || i >= sections.length) {
-      setIsSectionPlaying(false);
-      return;
-    }
-
-    window.speechSynthesis.cancel();
-    const section = sections[i];
-    const utterance = new SpeechSynthesisUtterance(section.content);
-    const settings = voiceSettingsRef.current;
-    utterance.rate = settings.rate;
-    utterance.pitch = settings.pitch;
-    utterance.volume = settings.volume;
-
-    utterance.onstart = () => setIsSectionPlaying(true);
-    utterance.onend = () => {
-      setIsSectionPlaying(false);
-      const point = interruptionPoints.find(p => p.afterSectionIndex === i);
-      const card = point ? cardsById.get(point.cardId) : undefined;
-      if (card) {
-        setPendingCard(card);
-        setCardRevealed(false);
-        return;
-      }
-      const next = i + 1;
-      if (sections && next < sections.length) {
-        setSectionIndex(next);
-        speakViaBrowser(next);
-      }
-    };
-    utterance.onerror = () => setIsSectionPlaying(false);
-
-    sectionUtteranceRef.current = utterance;
-    setSectionIndex(i);
-    if (window.speechSynthesis.paused) window.speechSynthesis.resume();
-    window.speechSynthesis.speak(utterance);
-  }, [sections, interruptionPoints, cardsById]);
 
   const playSection = useCallback(async (i: number) => {
     if (!sections || i >= sections.length) {
@@ -304,15 +257,15 @@ export function useAudioPlayback({
     setIsFetchingAudio(false);
 
     if (!url) {
-      setBackend('browser');
-      speakViaBrowser(i);
+      // Proxy failure already surfaced via voiceError banner. Stay
+      // paused — never fall back to robotic browser TTS.
+      setIsSectionPlaying(false);
       return;
     }
-    setBackend('openai');
 
     const el = audioElRef.current;
     if (!el) {
-      speakViaBrowser(i);
+      setIsSectionPlaying(false);
       return;
     }
 
@@ -334,51 +287,46 @@ export function useAudioPlayback({
       }
     };
     el.onerror = () => {
+      // Decoding failed on the cached blob — surface and let user retry.
       setIsSectionPlaying(false);
-      setBackend('browser');
-      speakViaBrowser(i);
+      setVoiceError('Audio playback failed. Tap play to retry.');
     };
 
     try {
       await el.play();
-    } catch {
-      setBackend('browser');
-      speakViaBrowser(i);
+    } catch (err) {
+      // play() rejection — typically autoplay policy or other browser
+      // restriction. Stay paused; user can retry via the orb.
+      setIsSectionPlaying(false);
+      setVoiceError(classifyAudioError(err));
       return;
     }
 
     if (sections && i + 1 < sections.length) {
       void fetchSectionAudio(i + 1);
     }
-  }, [sections, interruptionPoints, cardsById, fetchSectionAudio, speakViaBrowser]);
+  }, [sections, interruptionPoints, cardsById, fetchSectionAudio]);
 
   const handlePlayPause = useCallback(() => {
     if (!hasSections || !briefing) return;
     if (pendingCard) return;
 
     if (isSectionPlaying) {
-      if (backend === 'openai') {
-        audioElRef.current?.pause();
-      } else {
-        window.speechSynthesis.pause();
-      }
+      audioElRef.current?.pause();
       setIsSectionPlaying(false);
       return;
     }
 
-    // Resume mid-section
-    if (backend === 'openai' && audioElRef.current?.paused && audioElRef.current.src) {
-      void audioElRef.current.play();
-      return;
-    }
-    if (backend === 'browser' && window.speechSynthesis.paused) {
-      window.speechSynthesis.resume();
-      setIsSectionPlaying(true);
+    // Resume mid-section if the audio element has a source loaded.
+    if (audioElRef.current?.paused && audioElRef.current.src) {
+      void audioElRef.current.play().catch(err => {
+        setVoiceError(classifyAudioError(err));
+      });
       return;
     }
 
     void playSection(sectionIndex);
-  }, [hasSections, briefing, pendingCard, isSectionPlaying, backend, playSection, sectionIndex]);
+  }, [hasSections, briefing, pendingCard, isSectionPlaying, playSection, sectionIndex]);
 
   const handleCardVerdict = useCallback((verdict: 'gotIt' | 'reviewAgain') => {
     if (!pendingCard || !briefing) return;
@@ -419,7 +367,7 @@ export function useAudioPlayback({
     : isFetchingAudio
       ? 'loading voice…'
       : isSectionPlaying
-        ? backend === 'browser' ? 'playing · browser voice' : 'playing'
+        ? 'playing'
         : 'ready';
 
   return {
@@ -436,7 +384,6 @@ export function useAudioPlayback({
     setShowScript,
     voiceError,
     setVoiceError,
-    backend,
     hasSections,
     handlePlayPause,
     handleCardVerdict,

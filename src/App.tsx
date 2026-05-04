@@ -95,14 +95,33 @@ function AppMain() {
     }
   }, [refreshBilling]);
 
+  // Loading-stage detector — needed by useOrbVoice below + the orb
+  // caption derivation further down.
+  const isLoadingStage = stage === 'fetching' || stage === 'analyzing' ||
+    stage === 'flashcards' || stage === 'audio' || stage === 'diving' || stage === 'reframing';
+
+  // JARVIS narrator — speaks status + motivationals while gen is in
+  // flight. Returns currentLine (caption tracks the audio) and
+  // isSpeaking (App defers the content transition until the line
+  // finishes, so the user hears a complete sentence before the visual
+  // swaps to the content view).
+  const orbVoice = useOrbVoice({
+    isGenerating: isLoadingStage,
+    stage,
+  });
+
   // Auto-transition based on the generation state machine. 'diving' /
-  // 'reframing' deliberately don't flip to 'generating' anymore — the orb
-  // shows Loading + the DiveOverlay materialises beside it. Initial
-  // generation does flip to 'generating' so the GeneratingBand renders
-  // its stage list beside the orb.
+  // 'reframing' deliberately don't flip to 'generating' — the orb shows
+  // Loading + the DiveOverlay materialises beside it. Initial generation
+  // does flip to 'generating' so the GeneratingBand renders.
+  //
+  // Gated on `!orbVoice.isSpeaking` so the JARVIS narrator can finish
+  // its current line before the visual swaps to content. The effect
+  // re-fires when isSpeaking flips false, landing the user on content
+  // exactly when speech ends.
   const lastSavedKeyRef = useRef<string | null>(null);
   useEffect(() => {
-    if (stage === 'complete' && flashcards && audioScript) {
+    if (stage === 'complete' && flashcards && audioScript && !orbVoice.isSpeaking) {
       setAppState('content');
       refreshBilling();
       // Skip auto-save for dives (transient sub-views; we don't want a
@@ -120,7 +139,7 @@ function AppMain() {
         }
       }
     }
-  }, [stage, flashcards, audioScript, refreshBilling, wasLoadedFromLibrary, isInDive]);
+  }, [stage, flashcards, audioScript, refreshBilling, wasLoadedFromLibrary, isInDive, orbVoice.isSpeaking]);
 
   const handleGenerateContent = async (input: { url?: string; text?: string; type: 'url' | 'text' }) => {
     setAppState('generating');
@@ -171,8 +190,6 @@ function AppMain() {
 
   // ── Derive orb props for the persistent SolarFlare ──────────────────
   // Priority: dive loading > generating > playback state > idle.
-  const isLoadingStage = stage === 'fetching' || stage === 'analyzing' ||
-    stage === 'flashcards' || stage === 'audio' || stage === 'diving' || stage === 'reframing';
 
   // Track which onboarding step the user is on so the orb caption mirrors
   // the question they're answering. The OnboardingBand exposes its own
@@ -180,15 +197,11 @@ function AppMain() {
   // — so we hoist the step into App-level state.
   const [onboardingStep, setOnboardingStep] = useState(0);
 
-  // JARVIS narrator — speaks status + motivationals while gen is in
-  // flight. Returns currentLine so the orb caption tracks the audio.
-  const orbVoice = useOrbVoice({
-    isGenerating: isLoadingStage,
-    stage,
-  });
-
+  // Stay in Loading visual while the JARVIS narrator is finishing its
+  // current line — even after stage='complete' the orb continues to
+  // look like it's working until the spoken sentence ends.
   const flareState: FlareState =
-    isLoadingStage ? 'Loading' :
+    isLoadingStage || orbVoice.isSpeaking ? 'Loading' :
     currentState === 'content' ? audio.flareState :
     'Idle';
 
@@ -198,10 +211,11 @@ function AppMain() {
     0;
 
   // Caption text — instrument-readout style. Always lowercase, calm.
-  // While generating, JARVIS's currentLine takes over so the visible
-  // caption matches what the voice is saying.
+  // JARVIS's currentLine takes priority over everything else so the
+  // visible caption stays in sync with the spoken audio — even after
+  // stage='complete' if the line is still finishing.
   const orbCaption = (() => {
-    if (isLoadingStage && orbVoice.currentLine) return orbVoice.currentLine.toLowerCase();
+    if (orbVoice.currentLine) return orbVoice.currentLine.toLowerCase();
     if (currentState === 'setup') return 'welcome to basecamp';
     if (currentState === 'onboarding') {
       const captions = [
