@@ -2,6 +2,7 @@ import { motion } from 'framer-motion';
 import { Loader2 } from 'lucide-react';
 import type { AudioBriefing } from '../../types';
 import type { Flashcard } from '../../services/aiPrompting';
+import { FEATURES } from '../../config/features';
 import { QuizPanel } from './QuizPanel';
 
 interface ListeningBandProps {
@@ -93,7 +94,7 @@ export function ListeningBand({
           </button>
         </div>
         <div className="flex items-center gap-2">
-          {onReframeAudio && (
+          {FEATURES.showReframe && onReframeAudio && (
             <button
               onClick={onReframeAudio}
               disabled={isReframing}

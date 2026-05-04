@@ -209,25 +209,11 @@ test.describe('Golden Path: Full generation flow', () => {
       page.getByText('Understanding Stoicism')
     ).toBeVisible({ timeout: 30000 });
 
-    // === STEP 6: Tab selector should be pinned at top — switch to Study Cards ===
-    const studyCardsTab = page.getByRole('button', { name: 'Study Cards' });
-    await expect(studyCardsTab).toBeVisible({ timeout: 5000 });
-    await studyCardsTab.click();
-
-    // Verify a flashcard question is visible (use .first() — text appears in card + nav)
-    await expect(
-      page.getByText('What is Stoicism?').first()
-    ).toBeVisible({ timeout: 5000 });
-
-    // === STEP 7: Switch back to Audio via the tab selector ===
-    const audioTab = page.getByRole('button', { name: 'Audio' });
-    await expect(audioTab).toBeVisible({ timeout: 5000 });
-    await audioTab.click();
-    await expect(
-      page.getByText('Understanding Stoicism')
-    ).toBeVisible({ timeout: 5000 });
-
-    // === STEP 8: Verify header navigation still works ===
+    // === STEP 6: Verify header navigation still works ===
+    // SLC launch hides the Audio ↔ Study Cards toggle (FEATURES.showStudyCardsToggle
+    // is false). The mid-listen flashcard checkpoints are the only way to study;
+    // a separate study tab dilutes the offer. Steps 6–7 of the previous test
+    // (toggle Audio/Study Cards) are dropped accordingly.
     const newButton = page.getByRole('button', { name: 'New' });
     if (await newButton.isVisible({ timeout: 2000 }).catch(() => false)) {
       await newButton.click();

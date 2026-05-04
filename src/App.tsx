@@ -220,9 +220,7 @@ function AppMain() {
     if (currentState === 'onboarding') {
       const captions = [
         'first — what should I call you?',
-        'good. and what do you do?',
-        'a domain or hobby you know really well?',
-        'last one — what brings you here today?',
+        'now — what do you know well?',
       ];
       return captions[Math.min(onboardingStep, captions.length - 1)];
     }

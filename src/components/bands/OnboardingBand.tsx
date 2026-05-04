@@ -3,8 +3,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { saveProfile, type UserProfile } from '../../services/userProfile';
 
 interface OnboardingBandProps {
-  /** Called when the user completes (or skips through) the 4-question
-   *  flow. The profile has been persisted to localStorage by then. */
+  /** Called when the user completes (or skips) the 2-question flow.
+   *  The profile has been persisted to localStorage by then. */
   onComplete: (profile: UserProfile) => void;
   /** Notifies the parent (App) of step changes so the orb's caption
    *  above the band can mirror the current question. */
@@ -12,10 +12,7 @@ interface OnboardingBandProps {
 }
 
 interface Step {
-  key: 'name' | 'profession' | 'expertise' | 'intent';
-  /** What the orb caption ABOVE the band shows during this step. */
-  caption: string;
-  /** The label rendered above the input slot. */
+  key: 'name' | 'expertise';
   label: string;
   placeholder: string;
   /** Optional chip suggestions — the user can tap one to fill in. */
@@ -25,57 +22,52 @@ interface Step {
 const STEPS: Step[] = [
   {
     key: 'name',
-    caption: 'first — what should I call you?',
     label: 'Your name',
     placeholder: 'e.g. Jared',
   },
   {
-    key: 'profession',
-    caption: 'good. and what do you do?',
-    label: 'Your profession',
-    placeholder: 'e.g. software engineer',
-    suggestions: ['Engineer', 'Teacher', 'Student', 'Doctor', 'Designer', 'Writer', 'Manager'],
-  },
-  {
     key: 'expertise',
-    caption: 'a domain or hobby you know really well?',
-    label: 'A domain you know',
-    placeholder: 'e.g. jiu-jitsu, distributed systems, cooking',
-  },
-  {
-    key: 'intent',
-    caption: 'last one — what brings you here today?',
-    label: 'What brings you here',
-    placeholder: 'e.g. exploring stoicism, refreshing on linear algebra',
+    label: 'What do you know well?',
+    placeholder: 'or type your own…',
+    // Diverse domains — picked to span work + hobbies so most users
+    // find one that fits in <2 seconds. Fallback to free-text if not.
+    suggestions: [
+      'Software engineering',
+      'Sports',
+      'Music',
+      'Cooking',
+      'Movies & TV',
+      'Gaming',
+      'Business',
+      'Science',
+      'History',
+      'Art & design',
+      'Reading',
+      'Health & fitness',
+    ],
   },
 ];
 
 /**
- * Orb-led onboarding flow. Four short questions, each as its own step.
+ * Slimmer orb-led onboarding flow. Two questions — name + expertise.
  * The orb above (driven from App-level via the orbCaption prop) cycles
- * its caption to match the current step's question. The user types
- * (or skips) and advances.
+ * its caption to match the current step. The expertise step has a
+ * prominent chip grid so users pick something in seconds rather than
+ * getting stuck staring at a blank field.
  *
- * On completion, `userProfile.saveProfile()` writes to localStorage and
- * the `onComplete` callback fires. Each subsequent LLM prompt then
- * embeds an `<audience>` block with the profile so analogies bridge to
- * the user's known domains.
+ * On completion, `userProfile.saveProfile()` writes to localStorage
+ * (with empty profession + intent fields, which the audience block
+ * gracefully omits). The audience-bridge in prompts is keyed on
+ * `expertise` — that's the load-bearing field for tailored analogies.
  */
 export function OnboardingBand({ onComplete, onStepChange }: OnboardingBandProps) {
   const [stepIndex, setStepIndex] = useState(0);
-  const [answers, setAnswers] = useState({
-    name: '',
-    profession: '',
-    expertise: '',
-    intent: '',
-  });
+  const [answers, setAnswers] = useState({ name: '', expertise: '' });
   const [draft, setDraft] = useState('');
 
   const step = STEPS[stepIndex];
   const isLast = stepIndex === STEPS.length - 1;
 
-  // Tell the parent (App) what step we're on so the orb caption above
-  // the band mirrors the current question.
   useEffect(() => {
     onStepChange?.(stepIndex);
   }, [stepIndex, onStepChange]);
@@ -87,7 +79,14 @@ export function OnboardingBand({ onComplete, onStepChange }: OnboardingBandProps
     setDraft('');
 
     if (isLast) {
-      const profile = saveProfile(nextAnswers);
+      // Save with empty profession + intent — they're optional in the
+      // audience block. Only the populated fields appear in prompts.
+      const profile = saveProfile({
+        name: nextAnswers.name,
+        profession: '',
+        expertise: nextAnswers.expertise,
+        intent: '',
+      });
       onComplete(profile);
       return;
     }
@@ -124,9 +123,6 @@ export function OnboardingBand({ onComplete, onStepChange }: OnboardingBandProps
         ))}
       </div>
 
-      {/* Glass input slot — the question lives in the orb caption above
-          this band, so we don't repeat it here. We do show a small label
-          for the form field. */}
       <AnimatePresence mode="wait">
         <motion.form
           key={step.key}
@@ -140,6 +136,29 @@ export function OnboardingBand({ onComplete, onStepChange }: OnboardingBandProps
           <label className="block text-xs font-mono text-solar-500 uppercase tracking-wider">
             {step.label}
           </label>
+
+          {/* Suggestion chips on the expertise step — prominent, above
+              the input so the user picks from them first and only types
+              a custom answer if nothing fits. */}
+          {step.suggestions && step.suggestions.length > 0 && (
+            <div className="flex flex-wrap gap-1.5 pb-1">
+              {step.suggestions.map((s) => (
+                <button
+                  key={s}
+                  type="button"
+                  onClick={() => setDraft(s)}
+                  className={`text-[11px] px-2.5 py-1 rounded-full border transition-colors ${
+                    draft === s
+                      ? 'bg-solar-gold text-solar-900 border-solar-gold'
+                      : 'bg-solar-amber/15 border-solar-amber/40 text-solar-amber hover:bg-solar-amber/25'
+                  }`}
+                >
+                  {s}
+                </button>
+              ))}
+            </div>
+          )}
+
           <input
             type="text"
             value={draft}
@@ -149,22 +168,6 @@ export function OnboardingBand({ onComplete, onStepChange }: OnboardingBandProps
             className="w-full bg-solar-900/50 border border-solar-gold/15 rounded-lg px-4 py-3 text-solar-100 text-base focus:border-solar-gold focus:ring-1 focus:ring-solar-gold outline-none transition-colors"
             maxLength={200}
           />
-
-          {/* Suggestion chips for the profession step. */}
-          {step.suggestions && step.suggestions.length > 0 && (
-            <div className="flex flex-wrap gap-1.5">
-              {step.suggestions.map((s) => (
-                <button
-                  key={s}
-                  type="button"
-                  onClick={() => setDraft(s)}
-                  className="text-[11px] px-2.5 py-1 rounded-full bg-solar-amber/15 border border-solar-amber/40 text-solar-amber hover:bg-solar-amber/25 transition-colors"
-                >
-                  {s}
-                </button>
-              ))}
-            </div>
-          )}
 
           <div className="flex items-center gap-2 pt-1">
             <button
@@ -185,7 +188,7 @@ export function OnboardingBand({ onComplete, onStepChange }: OnboardingBandProps
         </motion.form>
       </AnimatePresence>
 
-      <p className="text-[10px] text-solar-500 font-mono uppercase tracking-wider">
+      <p className="text-[10px] text-solar-500 font-mono uppercase tracking-wider text-center">
         the more I know, the better the analogies
       </p>
     </motion.div>
