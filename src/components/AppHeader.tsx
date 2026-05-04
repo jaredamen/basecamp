@@ -1,3 +1,5 @@
+import { FEATURES } from '../config/features';
+
 interface AppHeaderProps {
   userName?: string;
   usageCents: number;
@@ -65,14 +67,16 @@ export function AppHeader({
                 Current
               </button>
             )}
-            <button onClick={onNavigateLibrary} className={navChip(currentView === 'library')}>
-              Library
-              {libraryCount > 0 && (
-                <span className="ml-1 inline-flex items-center justify-center text-[10px] bg-solar-gold/20 text-solar-gold font-mono px-1 rounded">
-                  {libraryCount}
-                </span>
-              )}
-            </button>
+            {FEATURES.showLibrary && (
+              <button onClick={onNavigateLibrary} className={navChip(currentView === 'library')}>
+                Library
+                {libraryCount > 0 && (
+                  <span className="ml-1 inline-flex items-center justify-center text-[10px] bg-solar-gold/20 text-solar-gold font-mono px-1 rounded">
+                    {libraryCount}
+                  </span>
+                )}
+              </button>
+            )}
           </nav>
         </div>
 

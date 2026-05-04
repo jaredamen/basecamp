@@ -3,6 +3,7 @@ import { Loader2 } from 'lucide-react';
 import type { FlashcardSet } from '../services/aiPrompting';
 import { useFlashcardAI } from '../hooks/useFlashcardAI';
 import { briefingLibrary } from '../services/briefingLibrary';
+import { FEATURES } from '../config/features';
 
 interface FlashcardDisplayProps {
   flashcardSet: FlashcardSet;
@@ -216,25 +217,28 @@ export function FlashcardDisplay({
               )}
 
               {/* Tokenized dive: pick a specific named concept to drill into,
-                  rather than diving on the whole card. Falls back to a single
-                  chip with the card's `front` if the LLM didn't emit keyTerms. */}
-              <div className="space-y-2">
-                <div className="text-xs text-solar-500">🤿 Dive deeper into:</div>
-                <div className="flex flex-wrap gap-2">
-                  {(currentCard.keyTerms && currentCard.keyTerms.length > 0
-                    ? currentCard.keyTerms
-                    : [currentCard.front]
-                  ).map((term, idx) => (
-                    <button
-                      key={idx}
-                      onClick={() => onDeepDive(term)}
-                      className="text-xs px-3 py-1.5 rounded-full bg-solar-amber/15 border border-solar-amber/40 text-solar-amber hover:bg-solar-amber/25 hover:border-solar-amber/60 transition-colors"
-                    >
-                      {term}
-                    </button>
-                  ))}
+                  rather than diving on the whole card. Hidden in the SLC
+                  launch (study mode itself is hidden via the toggle); v2
+                  re-enables. */}
+              {FEATURES.showDive && (
+                <div className="space-y-2">
+                  <div className="text-xs text-solar-500">🤿 Dive deeper into:</div>
+                  <div className="flex flex-wrap gap-2">
+                    {(currentCard.keyTerms && currentCard.keyTerms.length > 0
+                      ? currentCard.keyTerms
+                      : [currentCard.front]
+                    ).map((term, idx) => (
+                      <button
+                        key={idx}
+                        onClick={() => onDeepDive(term)}
+                        className="text-xs px-3 py-1.5 rounded-full bg-solar-amber/15 border border-solar-amber/40 text-solar-amber hover:bg-solar-amber/25 hover:border-solar-amber/60 transition-colors"
+                      >
+                        {term}
+                      </button>
+                    ))}
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
           )}
         </div>

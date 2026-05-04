@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import type { FlashcardSet, AudioScript } from '../../services/aiPrompting';
 import type { Flashcard } from '../../services/aiPrompting';
 import type { AudioBriefing } from '../../types';
+import { FEATURES } from '../../config/features';
 import { ListeningBand } from './ListeningBand';
 import { StudyingBand } from './StudyingBand';
 
@@ -86,32 +87,35 @@ export function ContentBand({
 
   return (
     <div className="space-y-4">
-      {/* Audio ↔ Study Cards toggle. Button names ("Audio", "Study Cards")
-          preserved verbatim — E2E selectors depend on them. */}
-      <div className="flex justify-center">
-        <div className="glass rounded-lg p-1 inline-flex">
-          <button
-            onClick={() => setViewMode('audio')}
-            className={`px-5 py-2 rounded-md text-sm font-medium transition-all ${
-              viewMode === 'audio'
-                ? 'bg-solar-gold text-solar-900 shadow'
-                : 'text-solar-400 hover:text-solar-100'
-            }`}
-          >
-            Audio
-          </button>
-          <button
-            onClick={() => setViewMode('flashcards')}
-            className={`px-5 py-2 rounded-md text-sm font-medium transition-all ${
-              viewMode === 'flashcards'
-                ? 'bg-solar-gold text-solar-900 shadow'
-                : 'text-solar-400 hover:text-solar-100'
-            }`}
-          >
-            Study Cards
-          </button>
+      {/* Audio ↔ Study Cards toggle — hidden in the SLC launch.
+          The mid-listen checkpoint quizzes ARE the study mechanism;
+          a separate study tab dilutes the offer. v2 re-enables. */}
+      {FEATURES.showStudyCardsToggle && (
+        <div className="flex justify-center">
+          <div className="glass rounded-lg p-1 inline-flex">
+            <button
+              onClick={() => setViewMode('audio')}
+              className={`px-5 py-2 rounded-md text-sm font-medium transition-all ${
+                viewMode === 'audio'
+                  ? 'bg-solar-gold text-solar-900 shadow'
+                  : 'text-solar-400 hover:text-solar-100'
+              }`}
+            >
+              Audio
+            </button>
+            <button
+              onClick={() => setViewMode('flashcards')}
+              className={`px-5 py-2 rounded-md text-sm font-medium transition-all ${
+                viewMode === 'flashcards'
+                  ? 'bg-solar-gold text-solar-900 shadow'
+                  : 'text-solar-400 hover:text-solar-100'
+              }`}
+            >
+              Study Cards
+            </button>
+          </div>
         </div>
-      </div>
+      )}
 
       <AnimatePresence mode="wait" initial={false}>
         {viewMode === 'audio' ? (

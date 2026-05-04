@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { Loader2 } from 'lucide-react';
 import type { Flashcard } from '../../services/aiPrompting';
 import { useFlashcardAI } from '../../hooks/useFlashcardAI';
+import { FEATURES } from '../../config/features';
 
 interface QuizPanelProps {
   card: Flashcard;
@@ -230,7 +231,7 @@ export function QuizPanel({
             </button>
           )}
 
-          {onDeepDive && (
+          {FEATURES.showDive && onDeepDive && (
             <div className="mt-4 space-y-2">
               <div className="text-xs text-solar-500 font-mono">🤿 dive deeper into:</div>
               <div className="flex flex-wrap gap-2">
