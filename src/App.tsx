@@ -9,6 +9,7 @@ import { OrbStage } from './components/OrbStage';
 import { AppHeader } from './components/AppHeader';
 import { AddPaymentModal } from './components/AddPaymentModal';
 import { SignInBand } from './components/bands/SignInBand';
+import { LandingSections } from './components/landing/LandingSections';
 import { OnboardingBand } from './components/bands/OnboardingBand';
 import { TopicInputBand } from './components/bands/TopicInputBand';
 import { GeneratingBand } from './components/bands/GeneratingBand';
@@ -373,6 +374,10 @@ function AppMain() {
             </AnimatePresence>
           </div>
         </div>
+
+        {/* Landing-page marketing scroll — only for unauthenticated visitors.
+            Hero (orb + SignInBand) is above the fold; the rest unfolds below. */}
+        {currentState === 'setup' && <LandingSections />}
       </main>
 
       {showPaymentModal && (
