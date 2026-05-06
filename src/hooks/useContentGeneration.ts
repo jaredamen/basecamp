@@ -134,8 +134,8 @@ export function useContentGeneration() {
         flashcards,
         audioScript,
         // Preserve the source so a later deepDive() has parent context to
-        // focus from. Truncated to 20K chars (same as fetch-url's cap).
-        originalContent: content.slice(0, 20_000),
+        // focus from. Truncated to 60K chars (same as fetch-url's cap).
+        originalContent: content.slice(0, 60_000),
       });
     } catch (error) {
       console.error('Content generation failed:', error);

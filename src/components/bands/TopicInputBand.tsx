@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Link2, Search, FileText } from 'lucide-react';
 import { wikiSearch, fallbackWikiUrl, type WikiResult } from '../../services/wikiSearch';
 
 interface TopicInputBandProps {
@@ -199,8 +199,19 @@ export function TopicInputBand({ onGenerate, isGenerating = false }: TopicInputB
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -8 }}
       transition={{ duration: 0.2 }}
-      className="flex flex-col items-center gap-4"
+      className="flex flex-col items-center gap-3"
     >
+      {/* Mode-icon strip — three options always visible so users discover
+          all three input modes (URL was easy to miss). The icon for the
+          auto-detected mode lights up; the others stay dimmed. */}
+      <div className="flex items-center gap-3 text-[11px] font-mono uppercase tracking-wider">
+        <ModeChip icon={Link2} label="URL" active={mode === 'url'} />
+        <span className="text-solar-700">·</span>
+        <ModeChip icon={Search} label="topic" active={mode === 'topic'} />
+        <span className="text-solar-700">·</span>
+        <ModeChip icon={FileText} label="text" active={mode === 'text'} />
+      </div>
+
       <div className="w-full glass rounded-2xl p-1.5">
         <textarea
           value={input}
@@ -288,5 +299,26 @@ export function TopicInputBand({ onGenerate, isGenerating = false }: TopicInputB
         </div>
       )}
     </motion.div>
+  );
+}
+
+function ModeChip({
+  icon: Icon,
+  label,
+  active,
+}: {
+  icon: typeof Link2;
+  label: string;
+  active: boolean;
+}) {
+  return (
+    <span
+      className={`inline-flex items-center gap-1 transition-colors ${
+        active ? 'text-solar-gold' : 'text-solar-500/70'
+      }`}
+    >
+      <Icon className="w-3 h-3" />
+      {label}
+    </span>
   );
 }

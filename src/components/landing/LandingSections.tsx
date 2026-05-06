@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Headphones, Brain, Sparkles, Check, ChevronDown } from 'lucide-react';
 import { signInWithGoogle } from '../../services/managedAuth';
+import { DemoStrip } from './DemoStrip';
+import { ExtensionHype } from './ExtensionHype';
 
 /**
  * Below-the-fold landing-page content for unauthenticated visitors.
@@ -15,8 +17,10 @@ export function LandingSections() {
   return (
     <div className="w-full max-w-5xl mx-auto px-4 pb-24 pt-16 sm:pt-24 space-y-24 sm:space-y-32">
       <ScrollHint />
+      <DemoStrip />
       <HowItWorks />
       <WhyItExists />
+      <ExtensionHype />
       <Pricing />
       <FAQ />
       <FinalCTA />
@@ -33,7 +37,7 @@ function ScrollHint() {
         transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
         className="text-solar-500 text-xs font-mono uppercase tracking-wider flex flex-col items-center gap-1"
       >
-        <span>scroll for the demo</span>
+        <span>see it in action</span>
         <ChevronDown className="w-4 h-4" />
       </motion.div>
     </div>
@@ -126,11 +130,12 @@ function Pricing() {
       name: 'Free',
       price: '$0',
       period: '',
-      tagline: 'Try it out',
+      tagline: 'Try it, then pay only for what you use',
       features: [
-        '5 briefings per month',
-        'Audio + checkpoint quizzes',
-        'No credit card required',
+        '~5 briefings included free',
+        'No card required to start',
+        'Add a card to keep going at ~$0.10 per briefing',
+        'No subscription, no auto-charge',
       ],
       cta: 'Start free',
       highlight: false,
@@ -144,7 +149,7 @@ function Pricing() {
         'Unlimited briefings',
         'Priority TTS quality',
         'Personal library + analytics',
-        'Browser extension',
+        'Browser extension (coming soon)',
       ],
       cta: 'Get lifetime',
       highlight: true,

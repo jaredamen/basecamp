@@ -46,6 +46,16 @@ test.describe('Landing page (unauthenticated)', () => {
     await expect(page.getByRole('button', { name: /Get lifetime/i })).toBeVisible();
     await expect(page.getByRole('button', { name: /Go monthly/i })).toBeVisible();
 
+    // Free tier mentions the add-card path (was a hard wall in PR 9).
+    await expect(page.getByText(/Add a card to keep going/i)).toBeVisible();
+
+    // Chrome extension is marked coming soon, not advertised as live.
+    await expect(page.getByText(/Browser extension \(coming soon\)/i)).toBeVisible();
+    await expect(page.getByRole('heading', { name: /Chrome extension launching soon/i })).toBeVisible();
+
+    // Demo strip is present (replaces the dead "scroll for the demo" promise).
+    await expect(page.getByText(/What it actually feels like/i)).toBeVisible();
+
     // FAQ — first answer is open by default.
     await expect(page.getByText(/Quick answers/i)).toBeVisible();
     await expect(page.getByText(/Do I need to install anything/i)).toBeVisible();
