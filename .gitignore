@@ -33,10 +33,10 @@ dist-ssr
 
 # Local-only project docs (kept out of revision control)
 CLAUDE.md
-PLAN.md
+ROADMAP.md
 MANUAL_TODO.md
 SETUP_GUIDE.md
-EXTENSION_AND_CLIPS_PLAN.md
+docs/EXTENSION_AND_CLIPS_PLAN.md
 llm_compliance/
 
 # Marketing clip pipeline output (regenerated, large, not source)
