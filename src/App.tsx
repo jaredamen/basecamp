@@ -10,6 +10,8 @@ import { AppHeader } from './components/AppHeader';
 import { AddPaymentModal } from './components/AddPaymentModal';
 import { SignInBand } from './components/bands/SignInBand';
 import { LandingSections } from './components/landing/LandingSections';
+import { PrivacyPage } from './components/legal/PrivacyPage';
+import { TermsPage } from './components/legal/TermsPage';
 import { OnboardingBand } from './components/bands/OnboardingBand';
 import { TopicInputBand } from './components/bands/TopicInputBand';
 import { GeneratingBand } from './components/bands/GeneratingBand';
@@ -25,6 +27,20 @@ import { loadProfile, clearProfile, type UserProfile } from './services/userProf
 type AppState = 'setup' | 'onboarding' | 'input' | 'generating' | 'content' | 'library';
 
 function App() {
+  // Tiny client-side route handling for the legal pages — we don't want
+  // a full router for two static documents. Reads pathname on mount and
+  // listens to popstate so back/forward buttons work.
+  const [path, setPath] = useState(() =>
+    typeof window !== 'undefined' ? window.location.pathname : '/'
+  );
+  useEffect(() => {
+    const onPop = () => setPath(window.location.pathname);
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, []);
+
+  if (path === '/privacy') return <PrivacyPage />;
+  if (path === '/terms') return <TermsPage />;
   return <AppMain />;
 }
 

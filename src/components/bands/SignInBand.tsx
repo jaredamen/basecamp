@@ -39,7 +39,7 @@ export function SignInBand() {
       </motion.button>
 
       <p className="text-[10px] text-solar-500 font-mono uppercase tracking-wider">
-        free $0.50 included · no credit card required
+        free to try · about 5 briefings included
       </p>
     </motion.div>
   );

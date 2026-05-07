@@ -120,9 +120,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       });
     }
 
-    // Cap returned content at 20,000 chars (roughly 5k tokens) to keep AI costs reasonable.
-    // Wikipedia articles can be 100k+ chars — we only need the first ~20k for good flashcards.
-    const capped = textContent.slice(0, 20_000);
+    // Cap returned content at 60,000 chars (~15k tokens). Stays well under
+    // GPT-4o's 128k context window with prompt + 3000 max output, but covers
+    // ~3× more of long Wikipedia articles than the prior 20k cap so the audio
+    // briefing can name and address every major sub-topic instead of skimming.
+    const capped = textContent.slice(0, 60_000);
 
     return res.status(200).json({ content: capped });
   } catch (err: unknown) {
