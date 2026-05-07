@@ -100,6 +100,12 @@ src/                  React frontend
 - Vercel auto-deploys `main` to production
 - Vercel also creates preview deployments for each PR
 
+## Docs
+
+- [`docs/RUNBOOK.md`](docs/RUNBOOK.md) — rollback, health checks, secret rotation
+- [`docs/GOLDEN_PATH.md`](docs/GOLDEN_PATH.md) — the critical user journey + e2e tests
+- [`docs/CICD_PIPELINE_SPEC.md`](docs/CICD_PIPELINE_SPEC.md) — CI/CD contract
+
 ## Author
 
 **Built by Jared (Yusef) Amen**
