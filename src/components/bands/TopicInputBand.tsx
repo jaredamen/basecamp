@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Loader2, Link2, Search, FileText } from 'lucide-react';
+import { Loader2, Link2, Search, FileText, Code2 } from 'lucide-react';
 import { wikiSearch, fallbackWikiUrl, type WikiResult } from '../../services/wikiSearch';
+import { extractTechnicalFlag } from '../../services/aiPrompting';
 
 interface TopicInputBandProps {
-  onGenerate: (input: { url?: string; text?: string; type: 'url' | 'text' }) => void;
+  onGenerate: (input: { url?: string; text?: string; type: 'url' | 'text'; technicalDepth?: boolean }) => void;
   isGenerating?: boolean;
 }
 
@@ -55,7 +56,16 @@ export function TopicInputBand({ onGenerate, isGenerating = false }: TopicInputB
   const handledExtensionParams = useRef(false);
   const searchAbortRef = useRef<AbortController | null>(null);
 
-  const mode = detectMode(input);
+  // Strip the inline [technical] flag (if present) before mode detection
+  // and Wikipedia search — otherwise "[technical] stoicism" would parse
+  // as a non-URL non-topic mess and search Wikipedia for the literal
+  // string with the flag in it. The flag is shown back to the user via
+  // the technical-depth chip below.
+  const { content: cleanedInput, technicalDepth } = useMemo(
+    () => extractTechnicalFlag(input),
+    [input],
+  );
+  const mode = detectMode(cleanedInput);
 
   // Auto-submit when launched from the Chrome extension. Same logic
   // as the old DocumentationInput — preserved verbatim. /?source=ext
@@ -100,7 +110,7 @@ export function TopicInputBand({ onGenerate, isGenerating = false }: TopicInputB
       searchAbortRef.current?.abort();
       const ctrl = new AbortController();
       searchAbortRef.current = ctrl;
-      const r = await wikiSearch(input, ctrl.signal);
+      const r = await wikiSearch(cleanedInput, ctrl.signal);
       // Only commit if this is still the active search.
       if (ctrl.signal.aborted) return;
       setResults(r);
@@ -109,7 +119,7 @@ export function TopicInputBand({ onGenerate, isGenerating = false }: TopicInputB
     return () => {
       window.clearTimeout(handle);
     };
-  }, [input, mode]);
+  }, [cleanedInput, mode]);
 
   // Clear error when the user edits the input.
   useEffect(() => {
@@ -119,11 +129,11 @@ export function TopicInputBand({ onGenerate, isGenerating = false }: TopicInputB
 
   const submitTopic = (topic: string, urlOverride?: string) => {
     if (urlOverride) {
-      onGenerate({ url: urlOverride, type: 'url' });
+      onGenerate({ url: urlOverride, type: 'url', technicalDepth });
       return;
     }
     if (results.length > 0) {
-      onGenerate({ url: results[0].url, type: 'url' });
+      onGenerate({ url: results[0].url, type: 'url', technicalDepth });
       return;
     }
     // No autocomplete results yet — try a synchronous lookup, then
@@ -131,23 +141,23 @@ export function TopicInputBand({ onGenerate, isGenerating = false }: TopicInputB
     void (async () => {
       const r = await wikiSearch(topic);
       if (r.length > 0) {
-        onGenerate({ url: r[0].url, type: 'url' });
+        onGenerate({ url: r[0].url, type: 'url', technicalDepth });
       } else {
         // Last-resort: construct a URL and let fetch-url try.
         // If that 404s, useContentGeneration's catch surfaces the
         // friendly error. (Better than a hard fail here.)
-        onGenerate({ url: fallbackWikiUrl(topic), type: 'url' });
+        onGenerate({ url: fallbackWikiUrl(topic), type: 'url', technicalDepth });
       }
     })();
   };
 
   const handleGenerate = () => {
     setError(null);
-    const trimmed = input.trim();
+    const trimmed = cleanedInput.trim();
     if (!trimmed) return;
 
     if (mode === 'url') {
-      onGenerate({ url: trimmed, type: 'url' });
+      onGenerate({ url: trimmed, type: 'url', technicalDepth });
       return;
     }
     if (mode === 'text') {
@@ -155,7 +165,7 @@ export function TopicInputBand({ onGenerate, isGenerating = false }: TopicInputB
         setError(`That's only ${trimmed.length} characters — need at least ${TEXT_MIN_LEN} for text mode.`);
         return;
       }
-      onGenerate({ text: trimmed, type: 'text' });
+      onGenerate({ text: trimmed, type: 'text', technicalDepth });
       return;
     }
     // Topic mode: auto-route via best Wikipedia match.
@@ -181,17 +191,17 @@ export function TopicInputBand({ onGenerate, isGenerating = false }: TopicInputB
 
   const modeHint = useMemo(() => {
     if (mode === 'url') return 'URL detected';
-    if (mode === 'text') return `text · ${input.trim().length} chars`;
+    if (mode === 'text') return `text · ${cleanedInput.trim().length} chars`;
     if (mode === 'topic') {
       if (searching) return 'searching Wikipedia…';
-      if (results.length === 0 && input.trim().length > 1) return 'no Wikipedia matches yet — keep typing or Generate to try anyway';
+      if (results.length === 0 && cleanedInput.trim().length > 1) return 'no Wikipedia matches yet — keep typing or Generate to try anyway';
       if (results.length > 0) return `topic · ${results.length} match${results.length === 1 ? '' : 'es'} on Wikipedia`;
       return 'topic · I\'ll look it up on Wikipedia';
     }
     return '';
-  }, [mode, input, searching, results.length]);
+  }, [mode, cleanedInput, searching, results.length]);
 
-  const canGenerate = input.trim().length > 0 && !isGenerating;
+  const canGenerate = cleanedInput.trim().length > 0 && !isGenerating;
 
   return (
     <motion.div
@@ -225,10 +235,21 @@ export function TopicInputBand({ onGenerate, isGenerating = false }: TopicInputB
         />
       </div>
 
-      {/* Mode hint — mono, small, just enough to telegraph the mode */}
+      {/* Mode hint — mono, small, just enough to telegraph the mode.
+          When [technical] is detected, surface a small chip so the user
+          knows the flag was recognized and stripped from their input. */}
       <div className="h-4 flex items-center gap-2 text-[11px] font-mono text-solar-500">
         {searching && <Loader2 className="w-3 h-3 animate-spin" />}
         <span>{modeHint}</span>
+        {technicalDepth && (
+          <span
+            data-testid="technical-depth-chip"
+            className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md border border-solar-gold/40 bg-solar-gold/10 text-solar-gold uppercase tracking-wider"
+          >
+            <Code2 className="w-3 h-3" />
+            technical depth
+          </span>
+        )}
       </div>
 
       {/* Topic-mode autocomplete chips. Click one to submit immediately. */}

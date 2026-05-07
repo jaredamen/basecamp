@@ -116,6 +116,47 @@ const ANALOGY_DOMAIN_POOL = [
   'A quilting bee around a single frame',
 ];
 
+/**
+ * Technical-flavored analogy pool. Used in addition to the consumer pool
+ * when `[technical]` mode is on — the two pools are concatenated and the
+ * per-deck shuffle samples from the combined ~80 domains. Tech-to-tech
+ * analogies often land harder for software practitioners than consumer
+ * analogies, but the consumer pool stays in the mix so cards keep
+ * variety.
+ */
+const TECHNICAL_ANALOGY_DOMAIN_POOL = [
+  'A TCP three-way handshake completing under packet loss',
+  'A garbage collector marking the heap during a stop-the-world pause',
+  'A turbo/bazel build comparing cache hashes before rebuilding',
+  'A Raft cluster reaching quorum after a leader election',
+  'An OS scheduler context-switching under priority inversion',
+  'A browser layout reflow after a single style mutation',
+  'A DNS resolver walking root → TLD → authoritative chain',
+  'A CPU branch predictor speculating past a conditional',
+  'A query planner choosing index scan vs sequential scan',
+  'A git rebase resolving the same divergent history as a merge',
+  'A kernel page fault triggering a copy-on-write split',
+  'A JIT compiler tiering up from interpreter to optimized code',
+  'A load balancer draining connections before a deploy',
+  'A queue worker acking only after committing the side-effect',
+  'A Kubernetes pod failing its readiness probe under load',
+  'A WebSocket upgrading from HTTP and keeping the socket open',
+  'A retry loop with exponential backoff and a jitter window',
+  'A cache layer choosing between LRU and LFU eviction',
+  'A monorepo CI run skipping unaffected packages via topology',
+  'A terminal pipeline streaming bytes between buffered processes',
+  'A circuit breaker opening after an error-rate threshold',
+  'An OAuth flow handing back an authorization code',
+  'A row-level lock in a transaction blocking a concurrent update',
+  'A CRDT merging concurrent edits without a coordinator',
+  'A JIT inlining a small hot function at its call site',
+  'A garbage collector promoting a survivor across generations',
+  'A reverse proxy terminating TLS before forwarding plaintext',
+  'A service mesh sidecar intercepting outbound traffic',
+  'A WAL flushing dirty pages on commit',
+  'A consistent-hash ring rebalancing when one node leaves',
+];
+
 /** Per-deck palette size — small enough to feel curated, big enough for 15 cards. */
 const PALETTE_SIZE = 15;
 
@@ -128,9 +169,60 @@ function shuffleAndPick<T>(arr: T[], n: number): T[] {
   return copy.slice(0, n);
 }
 
-function buildDomainPalette(): string {
-  const picked = shuffleAndPick(ANALOGY_DOMAIN_POOL, PALETTE_SIZE);
+function buildDomainPalette(options?: { technicalDepth?: boolean }): string {
+  const pool = options?.technicalDepth
+    ? [...ANALOGY_DOMAIN_POOL, ...TECHNICAL_ANALOGY_DOMAIN_POOL]
+    : ANALOGY_DOMAIN_POOL;
+  const picked = shuffleAndPick(pool, PALETTE_SIZE);
   return picked.map((d, i) => `${i + 1}. ${d}`).join('\n');
+}
+
+/**
+ * Renders the depth-instruction block prepended to prompts when the user
+ * has flagged the input as technical. Empty string when the flag is off so
+ * the existing prompt behavior is preserved bit-for-bit. The block lives
+ * outside the `<audience>` wrapper since it's about the content's framing,
+ * not the user's profile.
+ */
+export function renderTechnicalDepthBlock(technicalDepth: boolean): string {
+  if (!technicalDepth) return '';
+  return `<technical_depth>
+The user flagged this input as technical. Treat the reader as a working software practitioner:
+- Use precise technical vocabulary; prefer mechanism (how/why) over surface-level definition.
+- Surface tradeoffs and failure modes alongside the happy path.
+- Name specific APIs, commands, or data structures where the source provides them.
+- In audio narration, speak code naturally — say "lowercase t", omit backticks aloud, expand symbol names when ambiguous.
+- Aim for the upper end of the length budget for this depth setting.
+- Analogies should still lead each concept (the analogy palette includes both consumer and technical scenarios — pick whichever clarifies most).
+</technical_depth>
+`;
+}
+
+/**
+ * Strip the inline technical-depth flag from a user input. Accepts
+ * `[technical]`, `[tech]` (in either casing) or `--technical` anywhere
+ * in the string. Returns the cleaned content + a boolean for whether the
+ * flag was present.
+ *
+ * Used by both the input UI (to show a confirmation chip) and the
+ * generation hook (to send clean content to the LLM).
+ */
+export function extractTechnicalFlag(input: string): {
+  content: string;
+  technicalDepth: boolean;
+} {
+  const flagRe = /(?:^|\s)\[(?:technical|tech)\](?:\s|$)|(?:^|\s)--technical(?=\s|$)/i;
+  if (!flagRe.test(input)) {
+    return { content: input, technicalDepth: false };
+  }
+  // Replace globally — flag may appear more than once (harmless; user
+  // wins). Then collapse the whitespace we just inserted.
+  const cleaned = input
+    .replace(/(?:^|\s)\[(?:technical|tech)\](?:\s|$)/gi, ' ')
+    .replace(/(?:^|\s)--technical(?=\s|$)/gi, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  return { content: cleaned, technicalDepth: true };
 }
 
 const FLASHCARD_PROMPT = `You are a master teacher who teaches through ANALOGY and PARABLE — like Jesus with parables, Feynman with physics, or a brilliant friend explaining something over coffee. You NEVER give dry definitions. You ALWAYS connect new concepts to things the learner already knows.
@@ -572,11 +664,15 @@ export class AIPromptingService {
     _sourceType: 'url' | 'text',
     audioScript?: AudioScript,
     userProfile?: UserProfile | null,
+    options?: { technicalDepth?: boolean },
   ): string {
+    const technicalDepth = !!options?.technicalDepth;
+
     // Per-deck domain palette injected so the LLM doesn't get to pick its
     // own (it'll default to clichés). The pool shuffles per call, so two
     // generations on the same source yield different analogy palettes.
-    const palette = buildDomainPalette();
+    // Technical mode widens the source pool to include CS/software domains.
+    const palette = buildDomainPalette({ technicalDepth });
 
     // The audio script is the SOURCE OF TRUTH for what cards must cover.
     // Format with sections numbered so the LLM can pick interruptionPoints
@@ -596,7 +692,13 @@ export class AIPromptingService {
     // Prepend the audience block so the LLM treats the user's profile as
     // bridging context for analogies (sanitised in userProfile.ts before
     // it ever gets here, so the `<audience>` tag can't be escaped).
-    return renderAudienceBlock(userProfile ?? null) + built;
+    // Then prepend the technical-depth block when flagged so the LLM tilts
+    // toward mechanism/tradeoffs alongside the analogy framing.
+    return (
+      renderAudienceBlock(userProfile ?? null) +
+      renderTechnicalDepthBlock(technicalDepth) +
+      built
+    );
   }
 
   /**
@@ -704,9 +806,18 @@ export class AIPromptingService {
     return { flashcards, interruptionPoints };
   }
 
-  getAudioScriptPrompt(content: string, userProfile?: UserProfile | null): string {
+  getAudioScriptPrompt(
+    content: string,
+    userProfile?: UserProfile | null,
+    options?: { technicalDepth?: boolean },
+  ): string {
+    const technicalDepth = !!options?.technicalDepth;
     const built = AUDIO_SCRIPT_PROMPT.replace('{content}', wrapUntrusted(content));
-    return renderAudienceBlock(userProfile ?? null) + built;
+    return (
+      renderAudienceBlock(userProfile ?? null) +
+      renderTechnicalDepthBlock(technicalDepth) +
+      built
+    );
   }
 
   /**
@@ -720,17 +831,23 @@ export class AIPromptingService {
     flashcards: Flashcard[],
     previousAudioTitle: string,
     userProfile?: UserProfile | null,
+    options?: { technicalDepth?: boolean },
   ): string {
+    const technicalDepth = !!options?.technicalDepth;
     const cardList = flashcards
       .map(card => `- id: "${card.id}" — ${card.front}\n  answer: ${card.back}`)
       .join('\n');
-    const palette = buildDomainPalette();
+    const palette = buildDomainPalette({ technicalDepth });
     const built = AUDIO_REFRAME_PROMPT
       .replace('{previousTitle}', previousAudioTitle || 'Untitled')
       .replace('{domainPool}', palette)
       .replace('{flashcards}', cardList)
       .replace('{content}', wrapUntrusted(content.slice(0, 8000)));
-    return renderAudienceBlock(userProfile ?? null) + built;
+    return (
+      renderAudienceBlock(userProfile ?? null) +
+      renderTechnicalDepthBlock(technicalDepth) +
+      built
+    );
   }
 
   /**
@@ -897,7 +1014,9 @@ export class AIPromptingService {
     parentCards: Flashcard[],
     diveAudio: AudioScript,
     userProfile?: UserProfile | null,
+    options?: { technicalDepth?: boolean },
   ): string {
+    const technicalDepth = !!options?.technicalDepth;
     const parentCardsList = parentCards
       .slice(0, 12)
       .map(c => `- ${c.front} → ${c.back}`)
@@ -910,7 +1029,11 @@ export class AIPromptingService {
       .replace('{parentCards}', parentCardsList || '(none)')
       .replace('{parentContext}', wrapUntrusted(parentContext.slice(0, 4000)))
       .replace('{diveAudio}', wrapUntrusted(audioBlock));
-    return renderAudienceBlock(userProfile ?? null) + built;
+    return (
+      renderAudienceBlock(userProfile ?? null) +
+      renderTechnicalDepthBlock(technicalDepth) +
+      built
+    );
   }
 
   /**
@@ -921,10 +1044,16 @@ export class AIPromptingService {
     selection: string,
     parentContext: string,
     userProfile?: UserProfile | null,
+    options?: { technicalDepth?: boolean },
   ): string {
+    const technicalDepth = !!options?.technicalDepth;
     const built = DEEP_DIVE_AUDIO_PROMPT
       .replace('{selection}', selection.slice(0, 200))
       .replace('{parentContext}', wrapUntrusted(parentContext.slice(0, 4000)));
-    return renderAudienceBlock(userProfile ?? null) + built;
+    return (
+      renderAudienceBlock(userProfile ?? null) +
+      renderTechnicalDepthBlock(technicalDepth) +
+      built
+    );
   }
 }
