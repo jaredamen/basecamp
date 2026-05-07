@@ -158,7 +158,7 @@ function AppMain() {
     }
   }, [stage, flashcards, audioScript, refreshBilling, wasLoadedFromLibrary, isInDive, orbVoice.isSpeaking]);
 
-  const handleGenerateContent = async (input: { url?: string; text?: string; type: 'url' | 'text' }) => {
+  const handleGenerateContent = async (input: { url?: string; text?: string; type: 'url' | 'text'; technicalDepth?: boolean }) => {
     setAppState('generating');
     await generateContent(input);
   };

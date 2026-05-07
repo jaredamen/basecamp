@@ -1,7 +1,11 @@
 // @vitest-environment node
 
 import { describe, it, expect } from 'vitest';
-import { AIPromptingService } from '../../src/services/aiPrompting';
+import {
+  AIPromptingService,
+  extractTechnicalFlag,
+  renderTechnicalDepthBlock,
+} from '../../src/services/aiPrompting';
 
 const service = AIPromptingService.getInstance();
 
@@ -202,5 +206,97 @@ describe('parseAudioScriptResponse', () => {
     const result = service.parseAudioScriptResponse(json);
     expect(result.title).toBe('Audio Lesson');
     expect(result.metadata.estimatedDuration).toBe(300);
+  });
+});
+
+describe('extractTechnicalFlag', () => {
+  it('detects [technical] keyword', () => {
+    const r = extractTechnicalFlag('[technical] explain idempotency keys');
+    expect(r.technicalDepth).toBe(true);
+    expect(r.content).toBe('explain idempotency keys');
+  });
+
+  it('detects [tech] short form', () => {
+    const r = extractTechnicalFlag('[tech] WebSocket subprotocols');
+    expect(r.technicalDepth).toBe(true);
+    expect(r.content).toBe('WebSocket subprotocols');
+  });
+
+  it('detects --technical flag', () => {
+    const r = extractTechnicalFlag('explain --technical caching strategies');
+    expect(r.technicalDepth).toBe(true);
+    expect(r.content).toBe('explain caching strategies');
+  });
+
+  it('matches case-insensitively', () => {
+    const r = extractTechnicalFlag('[Technical] something');
+    expect(r.technicalDepth).toBe(true);
+    expect(r.content).toBe('something');
+  });
+
+  it('returns false on plain input', () => {
+    const r = extractTechnicalFlag('explain WebSocket subprotocols');
+    expect(r.technicalDepth).toBe(false);
+    expect(r.content).toBe('explain WebSocket subprotocols');
+  });
+
+  it('returns false when [technical] is mid-word (not a real flag)', () => {
+    // This is content that happens to contain the substring but isn't
+    // the flag — flag must be space- or boundary-delimited.
+    const r = extractTechnicalFlag('the\\[technical]\\citation says X');
+    expect(r.technicalDepth).toBe(false);
+  });
+
+  it('strips multiple occurrences', () => {
+    const r = extractTechnicalFlag('[tech] foo [technical] bar');
+    expect(r.technicalDepth).toBe(true);
+    expect(r.content).toBe('foo bar');
+  });
+
+  it('handles empty input', () => {
+    const r = extractTechnicalFlag('');
+    expect(r.technicalDepth).toBe(false);
+    expect(r.content).toBe('');
+  });
+});
+
+describe('renderTechnicalDepthBlock', () => {
+  it('returns empty string when off (preserves bit-for-bit existing prompts)', () => {
+    expect(renderTechnicalDepthBlock(false)).toBe('');
+  });
+
+  it('returns a <technical_depth> block with the depth instructions when on', () => {
+    const block = renderTechnicalDepthBlock(true);
+    expect(block).toContain('<technical_depth>');
+    expect(block).toContain('</technical_depth>');
+    expect(block).toContain('working software practitioner');
+    expect(block).toContain('mechanism');
+    expect(block).toContain('tradeoffs');
+  });
+});
+
+describe('getAudioScriptPrompt with technical depth', () => {
+  it('omits the depth block by default', () => {
+    const p = service.getAudioScriptPrompt('Some content', null);
+    expect(p).not.toContain('<technical_depth>');
+  });
+
+  it('includes the depth block when options.technicalDepth is true', () => {
+    const p = service.getAudioScriptPrompt('Some content', null, { technicalDepth: true });
+    expect(p).toContain('<technical_depth>');
+    expect(p).toContain('working software practitioner');
+  });
+});
+
+describe('getFlashcardPrompt with technical depth', () => {
+  it('omits the depth block by default', () => {
+    const p = service.getFlashcardPrompt('Some content', 'text');
+    expect(p).not.toContain('<technical_depth>');
+  });
+
+  it('includes the depth block when options.technicalDepth is true', () => {
+    const p = service.getFlashcardPrompt('Some content', 'text', undefined, null, { technicalDepth: true });
+    expect(p).toContain('<technical_depth>');
+    expect(p).toContain('mechanism');
   });
 });

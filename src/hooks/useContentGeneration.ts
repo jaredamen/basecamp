@@ -43,12 +43,21 @@ interface GenerationState {
    *  instead of a generic loading spinner. Cleared on dive completion
    *  (stage='complete') and on exitDive. */
   diveSelection?: string;
+  /** Whether the user flagged this generation as technical (via the
+   *  inline `[technical]` keyword on the input). Persisted on state so
+   *  downstream operations — dive, reframe — inherit the same depth
+   *  setting without the user having to re-flag each one. */
+  technicalDepth?: boolean;
 }
 
 interface GenerationInput {
   url?: string;
   text?: string;
   type: 'url' | 'text';
+  /** Set by TopicInputBand when it detects the inline `[technical]` flag.
+   *  Strips through to the prompt builders to widen the analogy palette
+   *  and add the technical-depth instruction block. */
+  technicalDepth?: boolean;
 }
 
 async function callManagedAI(
@@ -98,9 +107,10 @@ export function useContentGeneration() {
       // 1) Generate the audio briefing FIRST. Audio is the driver: analogy
       //    leads, substance follows, the listener walks away knowing the
       //    actual content of the source.
-      setState(prev => ({ ...prev, stage: 'audio', progress: 35 }));
+      const technicalDepth = !!input.technicalDepth;
+      setState(prev => ({ ...prev, stage: 'audio', progress: 35, technicalDepth }));
       const userProfile = loadProfile();
-      const audioPrompt = aiService.getAudioScriptPrompt(content, userProfile);
+      const audioPrompt = aiService.getAudioScriptPrompt(content, userProfile, { technicalDepth });
       const audioJson = await callManagedAI(audioPrompt, { temperature: 0.8, maxTokens: 3000 });
       const audioScriptBase: AudioScript = aiService.parseAudioScriptResponse(audioJson);
 
@@ -113,7 +123,7 @@ export function useContentGeneration() {
       //    afterSectionIndex) since cards know which audio section they
       //    came from.
       setState(prev => ({ ...prev, stage: 'flashcards', progress: 80 }));
-      const flashcardPrompt = aiService.getFlashcardPrompt(content, input.type, audioScriptBase, userProfile);
+      const flashcardPrompt = aiService.getFlashcardPrompt(content, input.type, audioScriptBase, userProfile, { technicalDepth });
       const flashcardJson = await callManagedAI(flashcardPrompt, { temperature: 0.85 });
       const { flashcards, interruptionPoints } = aiService.parseFlashcardResponse(
         flashcardJson,
@@ -136,6 +146,9 @@ export function useContentGeneration() {
         // Preserve the source so a later deepDive() has parent context to
         // focus from. Truncated to 60K chars (same as fetch-url's cap).
         originalContent: content.slice(0, 60_000),
+        // Persist the depth flag so dive + reframe inherit it without the
+        // user having to re-type [technical] inside the dive selection.
+        technicalDepth,
       });
     } catch (error) {
       console.error('Content generation failed:', error);
@@ -264,10 +277,13 @@ export function useContentGeneration() {
     });
 
     try {
-      // Read the latest snapshot we just wrote.
-      const snap = await new Promise<GenerationState['parentSnapshot']>(resolve => {
+      // Read the latest snapshot + the persisted depth flag we just wrote.
+      const { snap, technicalDepth } = await new Promise<{
+        snap: GenerationState['parentSnapshot'];
+        technicalDepth: boolean;
+      }>(resolve => {
         setState(prev => {
-          resolve(prev.parentSnapshot);
+          resolve({ snap: prev.parentSnapshot, technicalDepth: !!prev.technicalDepth });
           return prev;
         });
       });
@@ -278,11 +294,13 @@ export function useContentGeneration() {
 
       // Audio-first dive: same order as the main path. Audio first, then
       // cards-from-audio (which also picks the dive's interruption points).
+      // Inherit the parent's technicalDepth flag so the dive matches its
+      // depth treatment without re-asking the user.
 
       const userProfile = loadProfile();
 
       // Step 1: dive AUDIO
-      const audioPrompt = aiService.getDeepDiveAudioPrompt(trimmed, parentContext, userProfile);
+      const audioPrompt = aiService.getDeepDiveAudioPrompt(trimmed, parentContext, userProfile, { technicalDepth });
       const audioJson = await callManagedAI(audioPrompt, { maxTokens: 2000, temperature: 0.8 });
       const diveAudioBase: AudioScript = aiService.parseAudioScriptResponse(audioJson);
 
@@ -290,7 +308,7 @@ export function useContentGeneration() {
 
       // Step 2: dive CARDS (downstream of dive audio; also pick interruption
       // points referencing the dive's sections).
-      const cardsPrompt = aiService.getDeepDiveFlashcardPrompt(trimmed, parentContext, parentCards, diveAudioBase, userProfile);
+      const cardsPrompt = aiService.getDeepDiveFlashcardPrompt(trimmed, parentContext, parentCards, diveAudioBase, userProfile, { technicalDepth });
       const cardsJson = await callManagedAI(cardsPrompt, { maxTokens: 2000, temperature: 0.85 });
       const { flashcards: diveCards, interruptionPoints: diveInterruptionPoints } = aiService.parseFlashcardResponse(
         cardsJson,
@@ -381,6 +399,7 @@ export function useContentGeneration() {
       content: string;
       cards: Flashcard[];
       previousTitle: string;
+      technicalDepth: boolean;
     } | null>(resolve => {
       setState(prev => {
         if (!prev.flashcards || !prev.audioScript) {
@@ -391,6 +410,7 @@ export function useContentGeneration() {
           content: prev.originalContent ?? '',
           cards: prev.flashcards.cards,
           previousTitle: prev.audioScript.title,
+          technicalDepth: !!prev.technicalDepth,
         });
         return {
           ...prev,
@@ -409,6 +429,7 @@ export function useContentGeneration() {
         snapshot.cards,
         snapshot.previousTitle,
         loadProfile(),
+        { technicalDepth: snapshot.technicalDepth },
       );
 
       const json = await callManagedAI(prompt, { maxTokens: 3000, temperature: 0.85 });
